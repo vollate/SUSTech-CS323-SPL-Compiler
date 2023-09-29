@@ -30,3 +30,16 @@
 *.exe
 *.out
 *.app
+
+# IDE config
+.idea/
+.vscode/
+
+# clangd
+.cache/
+compile_commands.json
+
+# build dir
+build/
+cmake-build-*/
+
