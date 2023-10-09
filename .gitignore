@@ -34,6 +34,7 @@
 # IDE config
 .idea/
 .vscode/
+.tasks
 
 # clangd
 .cache/
