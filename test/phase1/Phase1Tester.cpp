@@ -9,6 +9,7 @@ int main(int argc, char** argv) {
   spl::Frontage instance(argv[1]);
   for (int i = 1; i < argc; ++i) {
     instance.parse();
+    std::cout<<instance.str()<<'\n';
   }
 
   return 0;

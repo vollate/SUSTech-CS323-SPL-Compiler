@@ -13,7 +13,6 @@
     #include <string>
     #include <vector>
     #include <cstdint>
-    #include "Command.hpp"
 
     using namespace std;
 
@@ -44,6 +43,7 @@
     // #define yylex(x, y) scanner.get_next_token()
     
     using namespace spl;
+    using token_type = Parser::token_type;
 }
 
 %lex-param { spl::Scanner &scanner }
@@ -104,8 +104,13 @@ Program: ExtDefList {
 | error {printf("Error 0 waited to define\n");};
 
 
+<<<<<<< HEAD
 ExtDefList: ExtDef ExtDefList {
 }
+=======
+ExtDefList: ExtDef ExtDefList
+    | Debug
+>>>>>>> f6e7c1c1488a2525fee00acd38df82a1a5907d03
     | /* empty */ ;
 
 ExtDef: Specifier ExtDecList SEMI
@@ -182,6 +187,8 @@ Exp: Exp ASSIGN Exp
 
 Args: Exp COMMA Args
     | Exp;
+
+Debug: TYPE TERMINATE {frontage.append({token_type::TOKEN_TYPE, $1});};
 
 %%
 

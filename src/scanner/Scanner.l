@@ -34,8 +34,8 @@
 %%
 
 
-"int" {cout<<"find int\n";return Parser::make_INT(114514,spl::location());}
-<<EOF>>     { return yyterminate(); }
+"int" {return Parser::make_TYPE("This is int",spl::location());}
+<<EOF>>     { return yyterminate();/*return Parser::make_TERMINATE(spl::location());*/ }
 
 
 %%
