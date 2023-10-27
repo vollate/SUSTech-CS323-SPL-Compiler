@@ -33,11 +33,50 @@
 
 %%
 
-
+[0-9]+ {return Parser::make_INT(atoi(yytext),spl::location());}
+[0-9]+\.[0-9]+ {return Parser::make_FLOAT(atof(yytext),spl::location());}
+[a-zA-Z_][a-zA-Z0-9_]* {return Parser::make_ID(yytext,spl::location());}
 "int" {return Parser::make_TYPE("This is int",spl::location());}
+"float" {return Parser::make_TYPE("This is float",spl::location());}
+"char" {return Parser::make_TYPE("This is char",spl::location());}
+"struct" {return Parser::make_STRUCT(spl::location());}
+"if" {return Parser::make_IF(spl::location());}
+"else" {return Parser::make_ELSE(spl::location());}
+"while" {return Parser::make_WHILE(spl::location());}
+"return" {return Parser::make_RETURN(spl::location());}
+"." {return Parser::make_DOT(spl::location());}
+";" {return Parser::make_SEMI(spl::location());}
+"," {return Parser::make_COMMA(spl::location());}
+"=" {return Parser::make_ASSIGN(spl::location());}
+"<" {return Parser::make_LT(spl::location());}
+"<=" {return Parser::make_LE(spl::location());}
+">" {return Parser::make_GT(spl::location());}
+">=" {return Parser::make_GE(spl::location());}
+"!=" {return Parser::make_NE(spl::location());}
+"==" {return Parser::make_EQ(spl::location());}
+"+" {return Parser::make_PLUS(spl::location());}
+"-" {return Parser::make_MINUS(spl::location());}
+"*" {return Parser::make_MUL(spl::location());}
+"/" {return Parser::make_DIV(spl::location());}
+"&&" {return Parser::make_AND(spl::location());}
+"||" {return Parser::make_OR(spl::location());}
+"!" {return Parser::make_NOT(spl::location());}
+"(" {return Parser::make_LP(spl::location());}
+")" {return Parser::make_RP(spl::location());}
+"[" {return Parser::make_LB(spl::location());}
+"]" {return Parser::make_RB(spl::location());}
+"{" {return Parser::make_LC(spl::location());}
+"}" {return Parser::make_RC(spl::location());}
+
 <<EOF>>     { return yyterminate();/*return Parser::make_TERMINATE(spl::location());*/ }
 
 
 %%
 
-
+int main(int argc, char **argv)
+{
+	spl::Scanner scanner;
+	spl::Parser parser(scanner);
+	parser.parse();
+	return 0;
+}
