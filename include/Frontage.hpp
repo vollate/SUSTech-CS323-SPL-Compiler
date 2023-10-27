@@ -1,6 +1,7 @@
 #ifndef Frontage_H
 #define Frontage_H
 
+#include <string>
 #include <vector>
 
 #include "Scanner.hpp"

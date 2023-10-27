@@ -19,8 +19,7 @@ int Frontage::parse() {
 }
 
 void Frontage::clear() {
-    m_location = 0;
-    m_commands.clear();
+        m_commands.clear();
 }
 
 std::string Frontage::str() const {
@@ -37,9 +36,9 @@ std::string Frontage::str() const {
 //    m_commands.clear();
 //}
 
-//void Frontage::addCommand(const Command &cmd) {
-////    m_commands.push_back(cmd);
-//}
+void Frontage::addCommand(const Command &cmd) {
+   m_commands.push_back(cmd);
+}
 
 void Frontage::increaseLocation(int32_t loc) {
     m_location += loc;

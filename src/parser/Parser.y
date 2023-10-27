@@ -6,6 +6,7 @@
 %define api.value.type variant
 %define parse.assert
 %define api.namespace { spl }
+
 %code requires
 {
     #include <iostream>
@@ -97,9 +98,14 @@
 
 %%
 
-Program: ExtDefList;
+Program: ExtDefList {
+    frontage.addCommand("Program", $1);
+}
+| error {printf("Error 0 waited to define\n");};
 
-ExtDefList: ExtDef ExtDefList
+
+ExtDefList: ExtDef ExtDefList {
+}
     | /* empty */ ;
 
 ExtDef: Specifier ExtDecList SEMI
