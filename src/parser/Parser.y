@@ -12,38 +12,51 @@
     #include <iostream>
     #include <string>
     #include <vector>
+    #include <memory>
     #include <cstdint>
+    #include <list>
+    #include <variant>
 
     using namespace std;
 
     namespace spl {
         class Scanner;
         class Frontage;
+        class Parser;
+        struct ASTNode {
+            using variant_type = std::variant<int32_t, float, std::string>;
+
+            int32_t type;
+            variant_type value;
+            std::list<std::unique_ptr<ASTNode>> subNodes;
+
+            ASTNode(int32_t type, variant_type &value) : type(type), value(std::forward<variant_type>(value)) {}
+            ASTNode(int32_t type, variant_type &&value) : type(type), value(std::forward<variant_type>(value)) {}
+
+            explicit ASTNode(int32_t type) : ASTNode(type, 0) {}
+        };
     }
+    using NodeType = std::unique_ptr<spl::ASTNode>;
 }
 
-// Bison calls yylex() function that must be provided by us to suck tokens
-// from the scanner. This block will be placed at the beginning of IMPLEMENTATION file (cpp).
-// We define this function here (function! not method).
-// This function is called only inside Bison, so we make it static to limit symbol visibility for the linker
-// to avoid potential linking conflicts.
 %code top
 {
     #include "Scanner.hpp"
     #include "Parser.hpp"
     #include "Frontage.hpp"
     #include "location.hh"
-    
+
     static spl::Parser::symbol_type yylex(spl::Scanner &scanner, spl::Frontage &frontage) {
-        return scanner.get_next_token();
+        return scanner.next_token();
     }
-    
     // you can accomplish the same thing by inlining the code using preprocessor
     // x and y are same as in above static function
     // #define yylex(x, y) scanner.get_next_token()
     
     using namespace spl;
     using token_type = Parser::token_type;
+    #define BUILD_AST_NODE(__type,__value)\
+    	std::make_unique<ASTNode>(token_type::__type, __value)
 }
 
 %lex-param { spl::Scanner &scanner }
@@ -54,63 +67,60 @@
 %define parse.trace
 %define parse.error verbose
 
-%define api.token.prefix {TOKEN_}
+%token END 0 "end of file"
+%token <NodeType> INT;
+%token <NodeType> FLOAT;
+%token <NodeType> CHAR;
+%token <NodeType> ID;
+%token <NodeType> TYPE;
+%token <NodeType> STRUCT ;
+%token <NodeType> IF;
+%token <NodeType> ELSE;
+%token <NodeType> WHILE;
+%token <NodeType> RETURN;
+%token <NodeType> DOT;
+%token <NodeType> SEMI;
+%token <NodeType> COMMA;
+%token <NodeType> ASSIGN;
+%token <NodeType> LT;
+%token <NodeType> LE;
+%token <NodeType> GT;
+%token <NodeType> GE;
+%token <NodeType> NE;
+%token <NodeType> EQ;
+%token <NodeType> PLUS;
+%token <NodeType> MINUS;
+%token <NodeType> MUL;
+%token <NodeType> DIV;
+%token <NodeType> AND;
+%token <NodeType> OR;
+%token <NodeType> NOT;
+%token <NodeType> LP;
+%token <NodeType> RP;
+%token <NodeType> LB;
+%token <NodeType> RB;
+%token <NodeType> LC;
+%token <NodeType> RC;
+%token <NodeType> ERROR;
 
-%token <int32_t> INT "int";
-%token <float> FLOAT "float";
-%token <char> CHAR "char";
-%token <std::string> ID;
-%token <std::string> TYPE "type";
-%token <std::string> STRUCT "struct";
-%token <std::string> IF "if";
-%token <std::string> ELSE "else";
-%token <std::string> WHILE "while";
-%token <std::string> RETURN "return";
-%token <std::string> DOT ".";
-%token <std::string> SEMI ";";
-%token <std::string> COMMA ",";
-%token <std::string> ASSIGN "=";
-%token <std::string> LT "<";
-%token <std::string> LE "<=";
-%token <std::string> GT ">";
-%token <std::string> GE ">=";
-%token <std::string> NE "!=";
-%token <std::string> EQ "==";
-%token <std::string> PLUS "+";
-%token <std::string> MINUS "-";
-%token <std::string> MUL "*";
-%token <std::string> DIV "/";
-%token <std::string> AND "&&";
-%token <std::string> OR "||";
-%token <std::string> NOT "!";
-%token <std::string> LP "(";
-%token <std::string> RP ")"
-%token <std::string> LB "[";
-%token <std::string> RB "]";
-%token <std::string> LC "{";
-%token <std::string> RC "}";
-%token TERMINATE;
+%nonassoc <NodeType> LEXICAL_ERROR;
 
+//!!! just used to pass value, do not use this in deduction
+%nonassoc <std::string> NON_TERMINAL
 
-//%type< spl::Command > command;
-//%type< std::vector<uint64_t> > arguments;
-
-
+%type <NodeType> Program ExtDef ExtDefList;
 %%
 
-Program: ExtDefList {
-    frontage.addCommand("Program", $1);
-}
-| error {printf("Error 0 waited to define\n");};
+Program: INT FLOAT {$$=BUILD_AST_NODE(NON_TERMINAL, "Program"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));frontage.m_ast.push_back(std::move($$));
+/* TODO 详情如下 @YYK
+ * 这条推断仅供示范，写的时候删掉这个推导,类似 https://github.com/Certseeds/CS323_Compilers_2020F/blob/master/project1/src/syntax.y
+ * 但是记得加std::move，不然会报错，因为unique_ptr无拷贝构造函数
+ * 待实现功能：基本推导，语法错误，词法错误
+*/}
+    | ExtDefList {$$=BUILD_AST_NODE(NON_TERMINAL, "Program"); $$->subNodes.push_back(std::move($1));frontage.m_ast.push_back(std::move($$));}
+    | /* empty */
 
-
-<<<<<<< HEAD
-ExtDefList: ExtDef ExtDefList {
-}
-=======
-ExtDefList: ExtDef ExtDefList
-    | Debug
->>>>>>> f6e7c1c1488a2525fee00acd38df82a1a5907d03
+ExtDefList: ExtDef ExtDefList {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDefList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
     | /* empty */ ;
 
 ExtDef: Specifier ExtDecList SEMI
@@ -188,16 +198,8 @@ Exp: Exp ASSIGN Exp
 Args: Exp COMMA Args
     | Exp;
 
-Debug: TYPE TERMINATE {frontage.append({token_type::TOKEN_TYPE, $1});};
-
 %%
-
-// Bison expects us to provide implementation - otherwise linker complains
 void spl::Parser::error(const location &loc , const std::string &message) {
-        
-        // Location should be initialized inside scanner action, but is not in this example.
-        // Let's grab location directly from frontage class.
-	// cout << "Error: " << message << endl << "Location: " << loc << endl;
-	
-        cout << "Error: " << message << endl << "Error location: " << frontage.location() << endl;
+        cout << "Error: " << message << "\nError location: " << frontage.location() << '\n';
 }
+//TODO: 加入词法，语义错误的处理，显示行号等等信息 @JYF

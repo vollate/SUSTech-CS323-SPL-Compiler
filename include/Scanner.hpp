@@ -5,7 +5,7 @@
 #if !defined(yyFlexLexerOnce)
 #undef yyFlexLexer
 #define yyFlexLexer \
-  spl_FlexLexer  // the trick with prefix; no namespace here :(
+  spl_FlexLexer
 #include <FlexLexer.h>
 #endif
 #include <fstream>
@@ -13,7 +13,7 @@
 // int. Sinice Bison 3 uses symbol_type, we must change returned type. We also
 // rename it to something sane, since you cannot overload return type.
 #undef YY_DECL
-#define YY_DECL spl::Parser::symbol_type spl::Scanner::get_next_token()
+#define YY_DECL spl::Parser::symbol_type spl::Scanner::next_token()
 
 #include "Parser.hpp"  // this is needed for symbol_type
 
@@ -34,7 +34,7 @@ class Scanner : public yyFlexLexer {
    switch_streams(&m_file, nullptr);
   }
   virtual ~Scanner() {}
-  virtual spl::Parser::symbol_type get_next_token();
+  virtual spl::Parser::symbol_type next_token();
 
  private:
   Frontage& m_frontage;

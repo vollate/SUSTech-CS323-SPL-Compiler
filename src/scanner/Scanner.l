@@ -10,19 +10,10 @@
     using namespace spl;
 	#define yyterminate() spl::Parser::make_TERMINATE(spl::location());
 
-	// This will track current scanner location.
-	// Action is called when length of the token is known.
 	#define YY_USER_ACTION m_frontage.increaseLocation(yyleng);
 
-	// !!!WARNING!!!
-	// Location API is used, but the location is not initialized, 'cause I'm lazy. When making
-	// a token with make_{something} method you can pass detailed token location. Current location
-	// is accessible with m_frontage.location() method. All puzzle elements are there - just
-	// pass location value in every action code block below. I'm going to waste more time writing
-	// this excuse than putting this boilerplate below...
-	//
-	// Location class can be found in location.hh and posistion.hh files. It's just a bit too much
-	// boilerplate for this small example. Bummer.
+	#define GENERATE_RETURN_TOKEN(__name,__type,__value)\
+	return Parser::make_##__name(std::make_unique<ASTNode>(token_type::__type,__value),spl::location())
 %}
 
 %option nodefault
@@ -31,15 +22,30 @@
 %option yyclass="Scanner"
 %option prefix="spl_"
 
+space [ ]+
 %%
 
-[0-9]+ {return Parser::make_INT(atoi(yytext),spl::location());}
-[0-9]+\.[0-9]+ {return Parser::make_FLOAT(atof(yytext),spl::location());}
+[0-9]+ {GENERATE_RETURN_TOKEN(INT,INT,atoi(yytext));}
+[0-9]+\.[0-9]+ {GENERATE_RETURN_TOKEN(FLOAT,FLOAT,std::strtof(yytext,nullptr));}
+
+{space} {cout<<"space\n";}
+<<EOF>>     { return Parser::make_END(spl::location());}
+.|\n       { cout<<"error\n";GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"unknow token: "+std::string(yytext));}
+
+%%
+/*TODO @LHL
+ * 学着上面的例子，把下面的token重写一下
+ * 例如，对于struct my_struct: STRUCT ID
+ *      struct的__name和__type都是STRUCT，__value是int,float,std::string中的任意值，建议直接填0(因为它本是就是一个固定的token)
+ *      ID 则分别是ID,ID,"my_struct"
+ * 待实现功能:
+ * 处理行注释和块注释
+ * 处理词法错误，加了一个叫LEX_ERROR的token，用来处理词法错误,如非法16进制数，非法浮点数等，超长整形数等，返回一个string说明发生了什么错误
 [a-zA-Z_][a-zA-Z0-9_]* {return Parser::make_ID(yytext,spl::location());}
 "int" {return Parser::make_TYPE("This is int",spl::location());}
 "float" {return Parser::make_TYPE("This is float",spl::location());}
 "char" {return Parser::make_TYPE("This is char",spl::location());}
-"struct" {return Parser::make_STRUCT(spl::location());}
+"struct" {GENERATE_RETURN_TOKEN(STRUCT,STRUCT,"struct");}
 "if" {return Parser::make_IF(spl::location());}
 "else" {return Parser::make_ELSE(spl::location());}
 "while" {return Parser::make_WHILE(spl::location());}
@@ -67,16 +73,4 @@
 "]" {return Parser::make_RB(spl::location());}
 "{" {return Parser::make_LC(spl::location());}
 "}" {return Parser::make_RC(spl::location());}
-
-<<EOF>>     { return yyterminate();/*return Parser::make_TERMINATE(spl::location());*/ }
-
-
-%%
-
-int main(int argc, char **argv)
-{
-	spl::Scanner scanner;
-	spl::Parser parser(scanner);
-	parser.parse();
-	return 0;
-}
+*/

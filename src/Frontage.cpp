@@ -3,37 +3,83 @@
 
 using namespace spl;
 
-Frontage::Frontage(std::string const &filePath)
-        : m_scanner(*this, filePath), m_parser(m_scanner, *this), m_location(0) {}
+Frontage::Frontage(std::string const& filePath) : m_scanner(*this, filePath), m_parser(m_scanner, *this), m_location(0) {}
 
 bool Frontage::parse() {
-    m_location = 0;
+    clear();
     return m_parser.parse() == 0;
 }
 
 void Frontage::clear() {
     m_location = 0;
     m_ast.clear();
+    emptyParentStack();
 }
-
-std::string Frontage::str() const {
-    std::stringstream s;
-    //TODO
-    for (auto &node: m_ast) {
-        s << std::get<std::string>(node.value) ;
+static void recursiveConvert(std::stringstream& s, const ASTNode* node) {
+//TODO: add type checking @JYF
+   try {
+        s << " " << std::get<int>(node->value);
+    }catch (std::bad_variant_access&) {
+        try {
+            s << " " << std::get<float>(node->value);
+        }catch (std::bad_variant_access&) {
+            try {
+                s << " " << std::get<std::string>(node->value);
+            }catch (std::bad_variant_access&) {
+                s << " " << "error";
+            }
+        }
     }
-    //    s << "Frontage: " << m_commands.size() << " commands received from
-    //    command line." << endl; for (int i = 0; i < m_commands.size(); i++) {
-    //        s << " * " << m_commands[i].str() << endl;
-    //    }
+   for(auto& subNode : node->subNodes) {
+        recursiveConvert(s, subNode.get());
+    }
+}
+std::string Frontage::str() const {//TODO
+    std::stringstream s;
+    for(auto& node : m_ast) {
+        recursiveConvert(s, node.get());
+    }
     return s.str();
 }
 
-void Frontage::append(ASTNode &&node) { m_ast.push_back(std::move(node)); }
-
-void Frontage::increaseLocation(int32_t loc) {
+void Frontage::increaseLocation(int32_t loc) {//TODO:修正位置信息@JYF
     m_location += loc;
     cout << "increaseLocation(): " << loc << ", total = " << m_location << endl;
 }
 
-int32_t Frontage::location() const { return m_location; }
+int32_t Frontage::location() const {
+    return m_location;
+}
+
+void Frontage::pushParent(ASTNode* node) {
+    if(node) {
+        m_parentNodeStack.push(node);
+    } else {
+        m_parentNodeStack.push(m_ast.back().get());
+    }
+}
+
+ASTNode* Frontage::getParent() {
+    if(!m_parentNodeStack.empty()) {
+        return m_parentNodeStack.top();
+    } else if(!m_ast.empty()) {
+        return m_ast.back().get();
+    }
+    return nullptr;
+}
+
+void Frontage::emptyParentStack() {
+    while(!m_ast.empty()) {
+        m_ast.pop_back();
+    }
+}
+
+ASTNode* Frontage::selectParent(const string& nonTerminalName) {
+    auto parent = getParent();
+    for(auto& candidate : parent->subNodes) {
+        if(std::get<std::string>(candidate->value) == nonTerminalName) {
+            return candidate.get();
+        }
+    }
+    return nullptr;
+}
