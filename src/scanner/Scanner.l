@@ -2,6 +2,7 @@
 	#include <iostream>
 	#include <cstdlib>
 	#include <cerrno>
+	#include <climits>
 	#include "Scanner.hpp"
 	#include "Frontage.hpp"
 	#include "Parser.hpp"
@@ -41,7 +42,7 @@ space [ ]+
     if (strspn(yytext + 2, "0123456789abcdefABCDEF") != strlen(yytext) - 2) {
         GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"Invalid hexadecimal: "+std::string(yytext));
     } else {
-        GENERATE_RETURN_TOKEN(INT,INT,std::strtol(yytext,nullptr,16));
+        GENERATE_RETURN_TOKEN(INT,INT,(int)std::strtol(yytext,nullptr,16));
     }
 }
 
@@ -49,11 +50,11 @@ space [ ]+
 	if (strspn(yytext + 1, "01234567") != strlen(yytext) - 1) {
 		GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"Invalid octal: "+std::string(yytext));
 	} else {
-		GENERATE_RETURN_TOKEN(INT,INT,std::strtol(yytext,nullptr,8));
+		GENERATE_RETURN_TOKEN(INT,INT,(int)std::strtol(yytext,nullptr,8));
 	}
 }
 
-[1-9][0-9]*|0 {
+[1-9][0-9]* {
 	char* endptr;
 	int64_t val = std::strtol(yytext, &endptr, 10);
 
@@ -62,13 +63,13 @@ space [ ]+
 	} else if(val > INT_MAX || val < INT_MIN) {
 		GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"Integer out of range: "+std::string(yytext));
 	} else {
-		GENERATE_RETURN_TOKEN(INT,INT,val);
+		GENERATE_RETURN_TOKEN(INT,INT,(int)val);
 	}
 }
 
-"int"    { GENERATE_RETURN_TOKEN(TYPE, TYPE_INT, 0); }
-"float"  { GENERATE_RETURN_TOKEN(TYPE, TYPE_FLOAT, 0); }
-"char"   { GENERATE_RETURN_TOKEN(TYPE, TYPE_CHAR, 0); }
+"int"    { GENERATE_RETURN_TOKEN(TYPE, TYPE, 0); }
+"float"  { GENERATE_RETURN_TOKEN(TYPE, TYPE, 0); }
+"char"   { GENERATE_RETURN_TOKEN(TYPE, TYPE, 0); }
 "struct" { GENERATE_RETURN_TOKEN(STRUCT, STRUCT, 0); }
 "if"     { GENERATE_RETURN_TOKEN(IF, IF, 0); }
 "else"   { GENERATE_RETURN_TOKEN(ELSE, ELSE, 0); }
@@ -103,7 +104,7 @@ space [ ]+
 
 "//".*  { /* Ignore single line comments */ }
 
-"/\*"[^*]*\*+([^/*][^*]*\*+)*/ { /* Ignore multiline comments */ }
+"/*"([^*]|\*[^/])*"*/" { /* Ignore multi line comments */ }
 
 {space} {cout<<"space\n";}
 <<EOF>>     { return Parser::make_END(spl::location());}

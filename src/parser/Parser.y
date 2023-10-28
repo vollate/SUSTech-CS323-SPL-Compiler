@@ -73,7 +73,7 @@
 %parse-param { spl::Scanner &scanner }
 %parse-param { spl::Frontage &frontage }
 %locations
-%define parse.trace
+//%define parse.trace
 %define parse.error verbose
 
 %token END 0 "end of file"
