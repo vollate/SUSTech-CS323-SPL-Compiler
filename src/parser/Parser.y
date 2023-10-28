@@ -124,38 +124,36 @@
 %type <NodeType> Def DefList DecList Dec;
 %type <NodeType> Exp Args;
 %%
-
-Program: 
 /* TODO 详情如下 @YYK
  * 这条推断仅供示范，写的时候删掉这个推导,类似 https://github.com/Certseeds/CS323_Compilers_2020F/blob/master/project1/src/syntax.y
  * 但是记得加std::move，不然会报错，因为unique_ptr无拷贝构造函数
  * 待实现功能：基本推导，语法错误，词法错误
 */
+Program: 
+
     ExtDefList {$$=BUILD_AST_NODE(NON_TERMINAL, "Program"); $$->subNodes.push_back(std::move($1));frontage.m_ast.push_back(std::move($$));}
-    | error { yyerror("Syntax error", SYNTAX_ERROR); };
+    | error { yyerror("Syntax error:1", SYNTAX_ERROR); };
 
 ExtDefList: ExtDef ExtDefList {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDefList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
     | {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDefList");};
 
 ExtDef: Specifier ExtDecList SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDef"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
-    | Specifier ExtDecList error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); }
+    | Specifier ExtDecList error { yyerror ("Syntax error:missing SEMI1", SYNTAX_ERROR); }
     | Specifier SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDef"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
     | Specifier FunDec CompSt SEMI error { yyerror ("Syntax error:redundant SEMI", SYNTAX_ERROR); }
-    | Specifier error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); }
+    | Specifier error { yyerror ("Syntax error:missing SEMI2", SYNTAX_ERROR); }
     | Specifier FunDec CompSt {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDef"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
     | error FunDec CompSt { yyerror ("Syntax error:missing Specifier", SYNTAX_ERROR); };
 
 ExtDecList: VarDec {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDecList"); $$->subNodes.push_back(std::move($1));}
     | VarDec COMMA ExtDecList {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDecList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));};
 
-Specifier: INT {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));}
-    | FLOAT {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));}
-    | CHAR {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));}
+Specifier: TYPE {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));}
+    // | FLOAT {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));}
+    // | CHAR {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));}
     | StructSpecifier {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));};
 
-StructSpecifier: STRUCT ID LC DefList RC {
-    $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); 
-    $$->subNodes.push_back(std::move($4)); $$->subNodes.push_back(std::move($5));}
+StructSpecifier: STRUCT ID LC DefList RC { $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4)); $$->subNodes.push_back(std::move($5));}
     | STRUCT ID LC DefList error { yyerror ("Syntax error:missing RC", SYNTAX_ERROR); }
     | STRUCT ID { $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));};
 
@@ -186,10 +184,10 @@ StmtList: Stmt StmtList {$$=BUILD_AST_NODE(NON_TERMINAL, "StmtList"); $$->subNod
 
 Stmt: Exp SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
     | SEMI error { yyerror ("Syntax error:redundant SEMI", SYNTAX_ERROR); }
-    | Exp error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); }
+    | Exp error { yyerror ("Syntax error:missing SEMI3", SYNTAX_ERROR); }
     | CompSt {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1));}
     | RETURN Exp SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
-    | RETURN Exp error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); }
+    | RETURN Exp error { yyerror ("Syntax error:missing SEMI4", SYNTAX_ERROR); }
     | IF LP Exp RP Stmt {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4)); $$->subNodes.push_back(std::move($5));}
     | IF LP Exp RP Stmt ELSE Stmt {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4)); $$->subNodes.push_back(std::move($5)); $$->subNodes.push_back(std::move($6)); $$->subNodes.push_back(std::move($7));}
     | WHILE LP Exp RP Stmt {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4)); $$->subNodes.push_back(std::move($5));};
@@ -198,7 +196,7 @@ DefList: Def DefList {$$=BUILD_AST_NODE(NON_TERMINAL, "DefList"); $$->subNodes.p
     | {$$=BUILD_AST_NODE(NON_TERMINAL, "DefList");};
 
 Def: Specifier DecList SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "Def"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
-    | Specifier DecList error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); };
+    | Specifier DecList error { yyerror ("Syntax error:missing SEMI5", SYNTAX_ERROR); };
 
 DecList: Dec {$$=BUILD_AST_NODE(NON_TERMINAL, "DecList"); $$->subNodes.push_back(std::move($1));}
     | Dec COMMA DecList {$$=BUILD_AST_NODE(NON_TERMINAL, "DecList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));};
