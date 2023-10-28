@@ -118,7 +118,11 @@
 //!!! just used to pass value, do not use this in deduction
 %nonassoc <std::string> NON_TERMINAL
 
-%type <NodeType> Program ExtDef ExtDefList ExtDecList Specifier StructSpecifier VarDec FunDec VarList ParamDec CompSt StmtList Stmt DefList Def DecList Dec Exp Args StructSpecifier;
+%type <NodeType> Program ExtDef ExtDefList Specifier StructSpecifier;
+%type <NodeType> VarDec FunDec VarList ParamDec CompSt Dec;
+%type <NodeType> StmtList Stmt;
+%type <NodeType> Def DecList;
+%type <NodeType> Exp Args;
 %%
 
 Program: 
