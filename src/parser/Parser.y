@@ -133,7 +133,7 @@ Program:
 ExtDefList: ExtDef ExtDefList {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDefList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
     | /* empty */ ;
 
-ExtDef: Specifier ExtDecList SEMI{$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDef"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+ExtDef: Specifier ExtDecList SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDef"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
     | Specifier ExtDecList error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); }
     | Specifier SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDef"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
     | Specifier FunDec CompSt SEMI error { yyerror ("Syntax error:redundant SEMI", SYNTAX_ERROR); }
