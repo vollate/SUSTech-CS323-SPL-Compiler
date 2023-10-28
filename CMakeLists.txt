@@ -4,6 +4,7 @@ project(SPL-Compiler)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_PRECOMPILE_OUTPUT_DIR ${CMAKE_BINARY_DIR}/pre_compile)
+file(MAKE_DIRECTORY "${CMAKE_PRECOMPILE_OUTPUT_DIR}")
 
 enable_testing()
 include_directories(include)
