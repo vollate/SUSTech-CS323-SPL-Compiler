@@ -19,6 +19,15 @@
 
     using namespace std;
 
+    enum error_type {
+        LEXICAL_ERROR,
+        SYNTAX_ERROR,
+        SEMANTIC_ERROR,
+        OTHER_ERROR
+    };
+
+    void yyerror(const char* msg, error_type err);
+
     namespace spl {
         class Scanner;
         class Frontage;
@@ -104,6 +113,7 @@
 %token <NodeType> ERROR;
 
 %nonassoc <NodeType> LEXICAL_ERROR;
+%nonassoc <NodeType> SYNTAX_ERROR;
 
 //!!! just used to pass value, do not use this in deduction
 %nonassoc <std::string> NON_TERMINAL
@@ -111,95 +121,138 @@
 %type <NodeType> Program ExtDef ExtDefList;
 %%
 
-Program: INT FLOAT {$$=BUILD_AST_NODE(NON_TERMINAL, "Program"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));frontage.m_ast.push_back(std::move($$));
+Program: 
 /* TODO 详情如下 @YYK
  * 这条推断仅供示范，写的时候删掉这个推导,类似 https://github.com/Certseeds/CS323_Compilers_2020F/blob/master/project1/src/syntax.y
  * 但是记得加std::move，不然会报错，因为unique_ptr无拷贝构造函数
  * 待实现功能：基本推导，语法错误，词法错误
-*/}
-    | ExtDefList {$$=BUILD_AST_NODE(NON_TERMINAL, "Program"); $$->subNodes.push_back(std::move($1));frontage.m_ast.push_back(std::move($$));}
-    | /* empty */
+*/
+    ExtDefList {$$=BUILD_AST_NODE(NON_TERMINAL, "Program"); $$->subNodes.push_back(std::move($1));frontage.m_ast.push_back(std::move($$));}
+    | error { yyerror("Syntax error", SYNTAX_ERROR); }
 
 ExtDefList: ExtDef ExtDefList {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDefList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
     | /* empty */ ;
 
-ExtDef: Specifier ExtDecList SEMI
-    | Specifier SEMI
-    | Specifier FunDec CompSt;
+ExtDef: Specifier ExtDecList SEMI{$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDef"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Specifier ExtDecList error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); }
+    | Specifier SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDef"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
+    | Specifier FunDec CompSt SEMI error { yyerror ("Syntax error:redundant SEMI", SYNTAX_ERROR); }
+    | Specifier error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); }
+    | Specifier FunDec CompSt {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDef"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | error FunDec CompSt { yyerror ("Syntax error:missing Specifier", SYNTAX_ERROR); };
 
-ExtDecList: VarDec
-    | VarDec COMMA ExtDecList;
+ExtDecList: VarDec {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDecList"); $$->subNodes.push_back(std::move($1));}
+    | VarDec COMMA ExtDecList {$$=BUILD_AST_NODE(NON_TERMINAL, "ExtDecList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));};
 
-Specifier: TYPE
-    | StructSpecifier;
+Specifier: INT {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));}
+    | FLOAT {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));}
+    | CHAR {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));}
+    | StructSpecifier {$$=BUILD_AST_NODE(NON_TERMINAL, "Specifier"); $$->subNodes.push_back(std::move($1));};
 
-StructSpecifier: STRUCT ID LC DefList RC
-    | STRUCT ID;
+StructSpecifier: STRUCT ID LC DefList RC {
+    $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); 
+    $$->subNodes.push_back(std::move($4)); $$->subNodes.push_back(std::move($5));}
+    | STRUCT ID LC DefList error { yyerror ("Syntax error:missing RC", SYNTAX_ERROR); }
+    | STRUCT ID { $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));};
 
-VarDec: ID
-    | VarDec LB INT RB;
 
-FunDec: ID LP VarList RP
-    | ID LP RP;
+VarDec: ID {$$=BUILD_AST_NODE(NON_TERMINAL, "VarDec"); $$->subNodes.push_back(std::move($1));}
+    | VarDec LB INT RB {$$=BUILD_AST_NODE(NON_TERMINAL, "VarDec"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4));}
+    | VarDec LB INT error { yyerror ("Syntax error:missing RB", SYNTAX_ERROR); }
+    | error { yyerror ("Syntax error:Var can not be Exp", SYNTAX_ERROR); };
 
-VarList: ParamDec COMMA VarList
-    | ParamDec;
+FunDec: ID LP VarList RP {$$=BUILD_AST_NODE(NON_TERMINAL, "FunDec"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4));}
+    | ID LP RP {$$=BUILD_AST_NODE(NON_TERMINAL, "FunDec"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));};
+    | ID LP VarList error { yyerror ("Syntax error:missing RP", SYNTAX_ERROR); }
+    | ID LP error { yyerror ("Syntax error:missing RP", SYNTAX_ERROR); };
 
-ParamDec: Specifier VarDec;
+VarList: ParamDec COMMA VarList {$$=BUILD_AST_NODE(NON_TERMINAL, "VarList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | ParamDec {$$=BUILD_AST_NODE(NON_TERMINAL, "VarList"); $$->subNodes.push_back(std::move($1));};
 
-CompSt: LC DefList StmtList RC;
 
-StmtList: Stmt StmtList
+ParamDec: Specifier VarDec {$$=BUILD_AST_NODE(NON_TERMINAL, "ParamDec"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));};
+
+CompSt: LC DefList StmtList RC {$$=BUILD_AST_NODE(NON_TERMINAL, "CompSt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4));}
+    | LC DecList StmtList error { yyerror ("Syntax error:missing RC", SYNTAX_ERROR); }
+    | LC DefList StmtList DefList error { yyerror ("Syntax error:missing specifier", SYNTAX_ERROR); };
+    
+
+StmtList: Stmt StmtList {$$=BUILD_AST_NODE(NON_TERMINAL, "StmtList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
     | /* empty */ ;
 
-Stmt: Exp SEMI
-    | CompSt
-    | RETURN Exp SEMI
-    | IF LP Exp RP Stmt
-    | IF LP Exp RP Stmt ELSE Stmt
-    | WHILE LP Exp RP Stmt;
+Stmt: Exp SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
+    | SEMI error { yyerror ("Syntax error:redundant SEMI", SYNTAX_ERROR); }
+    | Exp error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); }
+    | CompSt {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1));}
+    | RETURN Exp SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | RETURN Exp error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); }
+    | IF LP Exp RP Stmt {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4)); $$->subNodes.push_back(std::move($5));}
+    | IF LP Exp RP Stmt ELSE Stmt {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4)); $$->subNodes.push_back(std::move($5)); $$->subNodes.push_back(std::move($6)); $$->subNodes.push_back(std::move($7));}
+    | WHILE LP Exp RP Stmt {$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4)); $$->subNodes.push_back(std::move($5));};
 
-DefList: Def DefList
+DefList: Def DefList {$$=BUILD_AST_NODE(NON_TERMINAL, "DefList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
     | /* empty */ ;
 
-Def: Specifier DecList SEMI;
+Def: Specifier DecList SEMI {$$=BUILD_AST_NODE(NON_TERMINAL, "Def"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Specifier DecList error { yyerror ("Syntax error:missing SEMI", SYNTAX_ERROR); };
 
-DecList: Dec
-    | Dec COMMA DecList;
+DecList: Dec {$$=BUILD_AST_NODE(NON_TERMINAL, "DecList"); $$->subNodes.push_back(std::move($1));}
+    | Dec COMMA DecList {$$=BUILD_AST_NODE(NON_TERMINAL, "DecList"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));};
 
-Dec: VarDec
-    | VarDec ASSIGN Exp;
+Dec: VarDec {$$=BUILD_AST_NODE(NON_TERMINAL, "Dec"); $$->subNodes.push_back(std::move($1));}
+    | VarDec ASSIGN Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Dec"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));};
 
-Exp: Exp ASSIGN Exp
-    | Exp AND Exp
-    | Exp OR Exp
-    | Exp LT Exp
-    | Exp LE Exp
-    | Exp GT Exp
-    | Exp GE Exp
-    | Exp NE Exp
-    | Exp EQ Exp
-    | Exp PLUS Exp
-    | Exp MINUS Exp
-    | Exp MUL Exp
-    | Exp DIV Exp
-    | LP Exp RP
-    | MINUS Exp
-    | NOT Exp
-    | ID LP Args RP
-    | ID LP RP
-    | Exp LB Exp RB
-    | Exp DOT ID
-    | ID
-    | INT
-    | FLOAT
-    | CHAR;
+Exp: Exp ASSIGN Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp AND Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp OR Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp LT Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp LE Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp GT Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp GE Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp NE Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp EQ Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp PLUS Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp MINUS Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp MUL Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp DIV Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | LP Exp RP {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | LP Exp error { yyerror ("Syntax error:missing RP", SYNTAX_ERROR); }
+    | MINUS Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
+    | NOT Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2));}
+    | ID LP Args RP {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4));}
+    | ID LP Args error { yyerror ("Syntax error:missing RP", SYNTAX_ERROR); }
+    | ID LP RP {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | ID LP error { yyerror ("Syntax error:missing RP", SYNTAX_ERROR); }
+    | Exp LB Exp RB {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3)); $$->subNodes.push_back(std::move($4));}
+    | Exp LB Exp error { yyerror ("Syntax error:missing RB", SYNTAX_ERROR); }
+    | Exp DOT ID {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | ID {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1));}
+    | INT {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1));}
+    | FLOAT {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1));}
+    | CHAR {$$=BUILD_AST_NODE(NON_TERMINAL, "Exp"); $$->subNodes.push_back(std::move($1));};
 
-Args: Exp COMMA Args
-    | Exp;
+Args: Exp COMMA Args {$$=BUILD_AST_NODE(NON_TERMINAL, "Args"); $$->subNodes.push_back(std::move($1)); $$->subNodes.push_back(std::move($2)); $$->subNodes.push_back(std::move($3));}
+    | Exp {$$=BUILD_AST_NODE(NON_TERMINAL, "Args"); $$->subNodes.push_back(std::move($1));}
 
 %%
 void spl::Parser::error(const location &loc , const std::string &message) {
         cout << "Error: " << message << "\nError location: " << frontage.location() << '\n';
+}
+
+void yyerror(const char* msg, error_type err) {
+    switch(err) {
+        case LEXICAL_ERROR:
+            std::cerr << "Lexical error: " << msg << std::endl;
+            break;
+        case SYNTAX_ERROR:
+            std::cerr << "Syntax error: " << msg << std::endl;
+            break;
+        case SEMANTIC_ERROR:
+            std::cerr << "Semantic error: " << msg << std::endl;
+            break;
+        case OTHER_ERROR:
+            std::cerr << "Other error: " << msg << std::endl;
+            break;
+    }
 }
 //TODO: 加入词法，语义错误的处理，显示行号等等信息 @JYF
