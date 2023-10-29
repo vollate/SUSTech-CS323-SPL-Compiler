@@ -3,7 +3,8 @@
 
 using namespace spl;
 
-Frontage::Frontage(std::string const& filePath) : m_scanner(*this, filePath), m_parser(m_scanner, *this), m_location(0) {}
+Frontage::Frontage(std::string const &filePath) : m_scanner(*this, filePath), m_parser(m_scanner, *this),
+                                                  m_location(0) {}
 
 bool Frontage::parse() {
     clear();
@@ -11,33 +12,39 @@ bool Frontage::parse() {
 }
 
 void Frontage::clear() {
-    m_location=spl::location();
+    m_location = spl::location();
     m_ast.clear();
 }
 
-static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ASTNode>& node,size_t level=0) {
-    // TODO: add type checking @JYF
-    try {
-        s << " " << std::get<int>(node->value);
-    } catch(std::bad_variant_access&) {
-        try {
-            s << " " << std::get<float>(node->value);
-        } catch(std::bad_variant_access&) {
-            try {
-                s << " " << std::get<std::string>(node->value);
-            } catch(std::bad_variant_access&) {
-                s << " "
-                  << "error";
-            }
-        }
+template<typename ...T>
+struct overload : T ... {
+    using T::operator()...;
+};
+template<typename ...T>
+overload(T...) -> overload<T...>;
+
+static void recursiveConvert(std::stringstream &s, const std::unique_ptr<ASTNode> &node, size_t level = 0) {
+    for (int i = 0; i < level; i++) {
+        s << "  ";
     }
-    for(auto& subNode : node->subNodes) {
-        recursiveConvert(s, subNode,level+1);
+    if (static_cast<token_type>(node->type) == token_type::NON_TERMINAL) {
+        std::visit(overload{[&](auto val) { s << val; }}, node->value);
+        s << '(' << node->loc.begin.line << ')' << '\n';
+    } else if (auto type = static_cast<token_type>(node->type);type == token_type::TYPE || type == token_type::ID) {
+        s << (type == token_type::TYPE ? "TYPE: " : "ID: ");
+        std::visit(overload{[&](auto val) { s << val; }}, node->value);
+        s << '\n';
+    }else {
+        std::visit(overload{[&](auto val) { s << val<<'\n'; }}, node->value);
+    }
+    for (auto &subNode: node->subNodes) {
+        recursiveConvert(s, subNode, level + 1);
     }
 }
+
 std::string Frontage::str() const {  // TODO
     std::stringstream s;
-    for(auto& node : m_ast) {
+    for (auto &node: m_ast) {
         recursiveConvert(s, node);
     }
     return s.str();
