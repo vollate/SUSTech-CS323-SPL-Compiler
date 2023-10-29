@@ -13,7 +13,6 @@ bool Frontage::parse() {
 void Frontage::clear() {
     m_location = 0;
     m_ast.clear();
-    emptyParentStack();
 }
 static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ASTNode>& node) {
     // TODO: add type checking @JYF
@@ -45,42 +44,9 @@ std::string Frontage::str() const {  // TODO
 
 void Frontage::increaseLocation(int32_t loc) {  // TODO:修正位置信息@JYF
     m_location += loc;
-    cout << "increaseLocation(): " << loc << ", total = " << m_location << endl;
+//    cout << "increaseLocation(): " << loc << ", total = " << m_location << endl;
 }
 
 int32_t Frontage::location() const {
     return m_location;
-}
-
-void Frontage::pushParent(ASTNode* node) {
-    if(node) {
-        m_parentNodeStack.push(node);
-    } else {
-        m_parentNodeStack.push(m_ast.back().get());
-    }
-}
-
-ASTNode* Frontage::getParent() {
-    if(!m_parentNodeStack.empty()) {
-        return m_parentNodeStack.top();
-    } else if(!m_ast.empty()) {
-        return m_ast.back().get();
-    }
-    return nullptr;
-}
-
-void Frontage::emptyParentStack() {
-    while(!m_ast.empty()) {
-        m_ast.pop_back();
-    }
-}
-
-ASTNode* Frontage::selectParent(const string& nonTerminalName) {
-    auto parent = getParent();
-    for(auto& candidate : parent->subNodes) {
-        if(std::get<std::string>(candidate->value) == nonTerminalName) {
-            return candidate.get();
-        }
-    }
-    return nullptr;
 }

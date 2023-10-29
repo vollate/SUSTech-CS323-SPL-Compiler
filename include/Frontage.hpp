@@ -36,29 +36,6 @@ namespace spl {
 
         void increaseLocation(int32_t loc);
 
-        void pushParent(ASTNode *node = nullptr);
-
-        void emptyParentStack();
-
-        ASTNode *selectParent(const std::string &nonTerminalName);
-
-        ASTNode *getParent();
-
-        template<typename F, typename... P>
-        void reduceToNonTerminal(const std::string &nonTerminalParent, F &&v0, P &&... v) {
-            auto parent = selectParent(nonTerminalParent);
-            pushParent(parent);
-            recursiveReduction(parent, std::forward<F>(v0), std::forward<P>(v)...);
-        }
-
-        template<typename F, typename... P>
-        void recursiveReduction(ASTNode *parent, F &&v0, P &&... v) {
-            parent->subNodes.push_back(make_unique<ASTNode>(token_type::NON_TERMINAL, v0));
-            if constexpr (sizeof...(P)) {
-                recursiveReduction(parent, std::forward<P>(v)...);
-            }
-        }
-
         // Used to get last Scanner location. Used in error messages.
         int32_t location() const;
 
