@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.10)
 
 project(SPL-Compiler)
 set(CMAKE_CXX_STANDARD 17)
@@ -13,3 +13,4 @@ include_directories(include)
 include_directories(${CMAKE_PRECOMPILE_OUTPUT_DIR})
 add_subdirectory(src)
 add_subdirectory(test)
+install(TARGETS splc DESTINATION ${CMAKE_SOURCE_DIR}/bin)
