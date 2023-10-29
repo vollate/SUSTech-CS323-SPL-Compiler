@@ -1,0 +1,4 @@
+int testcase_8 (int a, int b) {
+    int 1c = 0;
+    return a + b + 1c;
+}
