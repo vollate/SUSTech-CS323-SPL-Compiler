@@ -32,12 +32,13 @@ namespace spl {
         Scanner m_scanner;
         Parser m_parser;
         std::list<std::unique_ptr<ASTNode>> m_ast;
-        int32_t m_location;
+        location m_location;
 
         void increaseLocation(int32_t loc);
+        void increaseLine(int32_t line=1);
 
         // Used to get last Scanner location. Used in error messages.
-        int32_t location() const;
+        spl::location location() const;
 
         friend class Parser;
 

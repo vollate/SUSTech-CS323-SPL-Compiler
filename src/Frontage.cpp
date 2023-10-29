@@ -11,10 +11,11 @@ bool Frontage::parse() {
 }
 
 void Frontage::clear() {
-    m_location = 0;
+    m_location=spl::location();
     m_ast.clear();
 }
-static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ASTNode>& node) {
+
+static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ASTNode>& node,size_t level=0) {
     // TODO: add type checking @JYF
     try {
         s << " " << std::get<int>(node->value);
@@ -31,7 +32,7 @@ static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ASTNode
         }
     }
     for(auto& subNode : node->subNodes) {
-        recursiveConvert(s, subNode);
+        recursiveConvert(s, subNode,level+1);
     }
 }
 std::string Frontage::str() const {  // TODO
@@ -47,6 +48,10 @@ void Frontage::increaseLocation(int32_t loc) {  // TODO:修正位置信息@JYF
 //    cout << "increaseLocation(): " << loc << ", total = " << m_location << endl;
 }
 
-int32_t Frontage::location() const {
+spl::location Frontage::location() const {
     return m_location;
+}
+
+void Frontage::increaseLine(int32_t line) {
+    m_location.end.line += line;
 }
