@@ -12,7 +12,7 @@
     using namespace spl;
 	#define yyterminate() spl::Parser::make_TERMINATE(spl::location());
 
-	#define YY_USER_ACTION m_frontage.increaseLocation(yyleng);
+	//#define YY_USER_ACTION m_frontage.increaseLocation(yyleng);
 
 #ifdef SPL_DEBUG
 	#define GENERATE_RETURN_TOKEN(__name,__type,__value)\
@@ -100,5 +100,5 @@ space [ ]+
 {char_illegal} {GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"Illegal char: "+std::string(yytext));}
 {char_over_length} {GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"Over-length char: "+std::string(yytext));}
 <<EOF>>     { return Parser::make_END(spl::location());}
-.           {}
+.           { GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"unknown lexeme: "+std::string(yytext));}
 %%

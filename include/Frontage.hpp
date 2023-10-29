@@ -26,19 +26,21 @@ namespace spl {
         void clear();
 
         std::string str() const;
-
+        spl::location location() const;
+        std::string error()const;
+        void appendError(std::string const& error);
     private:
         std::stack<ASTNode *> m_parentNodeStack;
         Scanner m_scanner;
         Parser m_parser;
         std::list<std::unique_ptr<ASTNode>> m_ast;
-        location m_location;
+        std::list<std::string> m_errors;
+        spl::location m_location;
 
-        void increaseLocation(int32_t loc);
+//        void increaseLocation(int32_t loc);
         void increaseLine(int32_t line=1);
 
         // Used to get last Scanner location. Used in error messages.
-        spl::location location() const;
 
         friend class Parser;
 
