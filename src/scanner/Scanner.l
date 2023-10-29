@@ -45,6 +45,7 @@ char_hex '\\x(0|[1-9a-fA-F]{digit_hex})'
 char_illegal '\\x([1-9a-fA-F]){digit_hex}*[g-z]{digit_hex}*'
 char_over_length '\\x{digit_hex}{3,}'
 ID {letter_}({letter_}|{digit})*
+invlid_ID [0-9]+{ID}
 space [ ]+
 %%
 
@@ -86,6 +87,7 @@ space [ ]+
 "}"      { GENERATE_RETURN_TOKEN(RC, RC, "RC"); }
 
 {ID}     { GENERATE_RETURN_TOKEN(ID, ID, std::string(yytext)); }
+
 {int32_dec} { GENERATE_RETURN_TOKEN(INT, INT, atoi(yytext)); }
 {int32_hex} { GENERATE_RETURN_TOKEN(INT, INT, static_cast<int32_t>(strtol(yytext, nullptr, 0))); }
 {int32_hex_illgeal_char} {GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"Invalid int32: "+std::string(yytext));}
@@ -99,6 +101,7 @@ space [ ]+
 {char_hex}  { GENERATE_RETURN_TOKEN(CHAR, CHAR, std::string(yytext)); }
 {char_illegal} {GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"Illegal char: "+std::string(yytext));}
 {char_over_length} {GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"Over-length char: "+std::string(yytext));}
+{invlid_ID} {GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"Invalid ID: "+std::string(yytext));}
 <<EOF>>     { return Parser::make_END(spl::location());}
 .           { GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"unknown lexeme: "+std::string(yytext));}
 %%
