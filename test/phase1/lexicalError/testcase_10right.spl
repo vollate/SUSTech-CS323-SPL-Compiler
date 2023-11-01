@@ -1,6 +1,0 @@
-int mul() {
-    int a = 0x2;
-    int b = 0x3;
-    int c = a * b;
-    return c;
-}

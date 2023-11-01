@@ -1,4 +1,0 @@
-int float_return() {
-    float a = 1.0;
-    return a;
-}
