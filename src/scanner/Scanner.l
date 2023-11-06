@@ -38,21 +38,48 @@ digit_hex [0-9a-fA-F]
 invalid_hex_char [g-zG-Z]
 int32_dec (0|([1-9]{digit}*))
 int32_hex 0[xX]({digit_hex}+)
+int32_oct 0[0-7]+
 int32_hex_illgeal_char 0[xX]({digit_hex}*{invalid_hex_char}+{digit_hex}*)
 float {digit}*\.{digit}*
 char '([a-zA-Z0-9!@#$%^&*()_+{}\[\]:;<>,.?~]|\\[\'\"?\\abfnrtv0])'
 char_hex '\\x(0|[1-9a-fA-F]{digit_hex})'
-char_illegal '\\x([1-9a-fA-F]){digit_hex}*[g-z]{digit_hex}*'
+char_illegal '\\x{digit_hex}*[g-zG-Z]{digit_hex}*'
 char_over_length '\\x{digit_hex}{3,}'
 ID {letter_}({letter_}|{digit})*
 invlid_ID [0-9]+{ID}
 space [ ]+
+include_s \#{space}*include{space}*<[^>]+>
+include_u \#{space}*include{space}*\"[^\"]+\"
 %%
+
+{include_s} {
+                std::string text(yytext);
+                auto start=text.find('<');
+                auto end=text.find('>',start+1);
+                auto fileName=text.substr(start+1,end-start-1);
+                if(m_frontage.sysFirstInclude(fileName)){
+                    GENERATE_RETURN_TOKEN(INCLUDE,INCLUDE,std::string( "Include: " )+fileName);
+                }else{
+                    GENERATE_RETURN_TOKEN(OTHER_ERROR,OTHER_ERROR,std::string("Can not find header ")+fileName);
+                }
+    }
+{include_u} {
+                std::string text(yytext);
+                auto start=text.find('"');
+                auto end=text.find('"',start+1);
+                auto fileName=text.substr(start+1,end-start-1);
+               if(m_frontage.userFirstInclude(fileName)){
+                    GENERATE_RETURN_TOKEN(INCLUDE,INCLUDE,std::string( "Include: " )+fileName);
+                }else{
+                    GENERATE_RETURN_TOKEN(OTHER_ERROR,OTHER_ERROR,std::string("Can not find header ")+fileName);
+                }
+    }
 
 "\n" {m_frontage.increaseLine();}
 [ \t\r]+ { /* Ignore whitespace */}
 "//".*  { /* Ignore single line comments */ }
 "/*"([^*]|\*[^/])*"*/" { /* Ignore multi line comments */ }
+
 "int"    { GENERATE_RETURN_TOKEN(TYPE, TYPE, "int"); }
 "float"  { GENERATE_RETURN_TOKEN(TYPE, TYPE, "float"); }
 "char"   { GENERATE_RETURN_TOKEN(TYPE, TYPE, "char"); }
@@ -62,11 +89,15 @@ space [ ]+
 "while"  { GENERATE_RETURN_TOKEN(WHILE, WHILE, "WHILE"); }
 "return" { GENERATE_RETURN_TOKEN(RETURN, RETURN, "RETURN"); }
 
-\.      { GENERATE_RETURN_TOKEN(DOT, DOT, "DOT"); }
+\.       { GENERATE_RETURN_TOKEN(DOT, DOT, "DOT"); }
 ";"      { GENERATE_RETURN_TOKEN(SEMI, SEMI, "SEMI"); }
 ","      { GENERATE_RETURN_TOKEN(COMMA, COMMA, "COMMA"); }
 "="      { GENERATE_RETURN_TOKEN(ASSIGN, ASSIGN, "ASSIGN"); }
 "<"      { GENERATE_RETURN_TOKEN(LT, LT, "LT"); }
+"+="     { GENERATE_RETURN_TOKEN(PLUS_EQUAL,PLUS_EQUAL,"PLUS_EQUAL"); }
+"-="     { GENERATE_RETURN_TOKEN(MINUS_EQUAL,MINUS_EQUAL,"MINUS_EQUAL"); }
+"*="     { GENERATE_RETURN_TOKEN(MUL_EQUAL,MUL_EQUAL,"MUL_EQUAL"); }
+"/="     { GENERATE_RETURN_TOKEN(DIV_EQUAL,DIV_EQUAL,"DIV_EQUAL"); }
 "<="     { GENERATE_RETURN_TOKEN(LE, LE, "LE"); }
 ">"      { GENERATE_RETURN_TOKEN(GT, GT, "GT"); }
 ">="     { GENERATE_RETURN_TOKEN(GE, GE, "GE"); }
@@ -90,6 +121,7 @@ space [ ]+
 
 {int32_dec} { GENERATE_RETURN_TOKEN(INT, INT, atoi(yytext)); }
 {int32_hex} { GENERATE_RETURN_TOKEN(INT, INT, static_cast<int32_t>(strtol(yytext, nullptr, 0))); }
+{int32_oct} { GENERATE_RETURN_TOKEN(INT, INT, static_cast<int32_t>(stoi(yytext, 0, 8))); }
 {int32_hex_illgeal_char} {GENERATE_RETURN_TOKEN(LEXICAL_ERROR,LEXICAL_ERROR,"Invalid int32: "+std::string(yytext));}
 {float}     { std::string s(yytext);
               if(s.length()==1 && s[0]=='.'){

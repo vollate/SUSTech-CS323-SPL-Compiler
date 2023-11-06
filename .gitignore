@@ -28,7 +28,7 @@
 
 # Executables
 *.exe
-*.out
+#*.out
 *.app
 
 # IDE config
@@ -44,3 +44,6 @@ compile_commands.json
 build/
 cmake-build-*/
 bin/
+**/testout/
+**/debugout/
+**/extra-out/
