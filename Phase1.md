@@ -38,16 +38,16 @@ int32_hex_illgeal_char 0[xX]({digit_hex}*{invalid_hex_char}+{digit_hex}*)
 #ifdef SPL_DEBUG
 #define GENERATE_RETURN_TOKEN(__name,__type,__value)\
 { cout<<"type: "<<#__name<<"\tvalue: "<<__value<<'\n';\
-return Parser::make_##__name(std::make_unique<ASTNode>(token_type::__type,m_frontage.location(),__value),m_frontage.location());}
+return Parser::make_##__name(std::make_unique<ParseNode>(token_type::__type,m_frontage.location(),__value),m_frontage.location());}
 #else
     #define GENERATE_RETURN_TOKEN(__name,__type,__value)\
-    return Parser::make_##__name(std::make_unique<ASTNode>(token_type::__type,m_frontage.location(),__value),m_frontage.location())
+    return Parser::make_##__name(std::make_unique<ParseNode>(token_type::__type,m_frontage.location(),__value),m_frontage.location())
 #endif
 ```
 
 ##### Parser
 
-我们使用ASTNode结构用来存储语法树的节点，每个节点有对应类型，参数和对应的位置信息以及子节点，构造函数使用右值引用和转发，对象赋值可以避免无用拷贝。
+我们使用ParseNode结构用来存储语法树的节点，每个节点有对应类型，参数和对应的位置信息以及子节点，构造函数使用右值引用和转发，对象赋值可以避免无用拷贝。
 定义spl命名空间确保不会产生命名冲突。
 
 ```c++
@@ -55,26 +55,26 @@ namespace spl {
         class Scanner;
         class Frontage;
         class Parser;
-        struct ASTNode {
+        struct ParseNode {
             using variant_type = std::variant<int32_t, float, std::string>;
             int32_t type;
             variant_type value;
             location loc;
-            std::list<std::unique_ptr<ASTNode>> subNodes;
-            ASTNode(int32_t type,location&& loc, variant_type &&value) : type(type),loc(std::forward<spl::location>(loc)), value(std::forward<variant_type>(value)) {
+            std::list<std::unique_ptr<ParseNode>> subNodes;
+            ParseNode(int32_t type,location&& loc, variant_type &&value) : type(type),loc(std::forward<spl::location>(loc)), value(std::forward<variant_type>(value)) {
             #ifdef SPL_DEBUG
             cout<<"new node location: "<<loc<<'\n';
             #endif
             }
         };
     }
-    using NodeType = std::unique_ptr<spl::ASTNode>;
+    using NodeType = std::unique_ptr<spl::ParseNode>;
 ```
 
 定义NodeType作为类型别名，可以通过更简单的方式引用。使用智能指针确保该节点的唯一指定，并且防止内存泄漏。
 
 ```c++
-using NodeType = std::unique_ptr<spl::ASTNode>;
+using NodeType = std::unique_ptr<spl::ParseNode>;
 ```
 
 我们引入yyerror处理错误信息，并增加枚举参数标识错误类型便于处理。
@@ -89,11 +89,11 @@ enum class ERROR_TYPE {
 void yyerror(const char* msg, ERROR_TYPE err);
 ```
 
-使用宏定义更快捷地创建ASTNode，并且唯一指针。
+使用宏定义更快捷地创建ParseNode，并且唯一指针。
 
 ```c++
 #define BUILD_AST_NODE(__type,__value)\
-std::make_unique<ASTNode>(token_type::__type,frontage.location(), __value)
+std::make_unique<ParseNode>(token_type::__type,frontage.location(), __value)
 ```
 
 在Token定义部分启用location，用于错误跟踪，方便输出错误位置

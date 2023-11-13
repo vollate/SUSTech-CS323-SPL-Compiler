@@ -35,7 +35,7 @@ struct overload : T... {
 template <typename... T>
 overload(T...) -> overload<T...>;
 
-static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ASTNode>& node, size_t level = 0) {
+static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ParseNode>& node, size_t level = 0) {
     bool addLevel = false;
     if(auto type = static_cast<token_type>(node->type); type != token_type::NOTHING) {
         addLevel = true;

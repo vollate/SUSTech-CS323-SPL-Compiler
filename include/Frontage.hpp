@@ -15,7 +15,7 @@
 #include <variant>
 
 namespace spl {
-    struct ASTNode;
+    struct ParseNode;
     using token_type = Parser::token_type;
     using variant_type = std::variant<int32_t, float, std::string>;
     class Frontage {
@@ -40,7 +40,7 @@ namespace spl {
         std::list<std::unique_ptr<Frontage>> m_includeTree;
         Scanner m_scanner;
         Parser m_parser;
-        std::list<std::unique_ptr<ASTNode>> m_ast;
+        std::list<std::unique_ptr<ParseNode>> m_ast;
         std::list<std::string> m_errors;
         spl::location m_location;
         bool sysFirstInclude(const std::string& name);

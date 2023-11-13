@@ -17,10 +17,10 @@
 #ifdef SPL_DEBUG
 	#define GENERATE_RETURN_TOKEN(__name,__type,__value)\
 {	cout<<"type: "<<#__name<<"\tvalue: "<<__value<<'\n';\
-return Parser::make_##__name(std::make_unique<ASTNode>(token_type::__type,m_frontage.location(),__value),m_frontage.location());}
+return Parser::make_##__name(std::make_unique<ParseNode>(token_type::__type,m_frontage.location(),__value),m_frontage.location());}
 #else
     #define GENERATE_RETURN_TOKEN(__name,__type,__value)\
-    return Parser::make_##__name(std::make_unique<ASTNode>(token_type::__type,m_frontage.location(),__value),m_frontage.location())
+    return Parser::make_##__name(std::make_unique<ParseNode>(token_type::__type,m_frontage.location(),__value),m_frontage.location())
 #endif
 %}
 
