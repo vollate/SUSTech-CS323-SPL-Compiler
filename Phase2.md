@@ -1,8 +1,10 @@
 # Phase 2
+
 ## Requirements
+
 - [ ] Type 1: a variable is used without a definition
 - [ ] Type 2: a function is invoked without a definition
-- [ ] Type 3: a variable is redefined in the same scope
+- [x] Type 3: a variable is redefined in the same scope
 - [ ] Type 4: a function is redefined (in the global scope, since we don’t have nested functions)
 - [ ] Type 5: unmatching types appear at both sides of the assignment operator (=)
 - [ ] Type 6: rvalue appears on the left-hand side of the assignment operator
@@ -15,3 +17,4 @@
 - [ ] Type 13: accessing members of a non-structure variable (i.e., misuse the dot operator)
 - [ ] Type 14: accessing an undefined structure member
 - [ ] Type 15: redefine the same structure type
+

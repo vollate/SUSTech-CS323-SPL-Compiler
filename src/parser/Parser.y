@@ -17,7 +17,6 @@
     #include <sstream>
     #include <type_traits>
     #include <cstdint>
-    #include <list>
     #include "location.hh"
 
     using namespace std;
@@ -34,31 +33,40 @@
         class Frontage;
         class Parser;
 
-        enum class VALUE_TYPE{
+        enum class ValueType{
             INT,
             CHAR,
             FLOAT,
-            INT_PTR,
-            CHAR_PTR,
-            FLOAT_PTR,
+            VOID,
+            ID,
+            TYPE,
+            FUNCTION,
+            STRUCT,
             ARRAY,
             NONE,
         };
+
+        inline void splDebugLog(const std::string& msg){
+            #ifdef SPL_DEBUG
+            std::cout<<msg<<'\n';
+            #endif
+        }
+
         struct ParseNode {
             using variant_type = std::variant<int32_t, float, std::string,char>;
 
             int32_t type;
             variant_type typeValue;
-            VALUE_TYPE valueType;
+            ValueType valueType;
             variant_type value;
             location loc;
-            std::list<std::unique_ptr<ParseNode>> subNodes;
+            std::vector<std::unique_ptr<ParseNode>> subNodes;
 
             ParseNode()=default;
             ParseNode(const ParseNode&rhs)=delete;
             ParseNode& operator=(const ParseNode&rhs)=delete;
-            ParseNode(int32_t type, const variant_type &typeValue,VALUE_TYPE valueType,const variant_type& value,location& loc) : type(type),loc(std::forward<spl::location>(loc)), typeValue(typeValue),valueType(valueType),value(value) {}
-            ParseNode(int32_t type, variant_type &&typeValue,VALUE_TYPE valueType,variant_type&& value,location&& loc) : type(type),loc(std::forward<spl::location>(loc)), typeValue(std::forward<variant_type>(typeValue)),valueType(valueType),value(std::forward<variant_type>(value)) {}
+            ParseNode(int32_t type, const variant_type &typeValue,ValueType valueType,const variant_type& value,location& loc) : type(type),loc(std::forward<spl::location>(loc)), typeValue(typeValue),valueType(valueType),value(value) {}
+            ParseNode(int32_t type, variant_type &&typeValue,ValueType valueType,variant_type&& value,location&& loc) : type(type),loc(std::forward<spl::location>(loc)), typeValue(std::forward<variant_type>(typeValue)),valueType(valueType),value(std::forward<variant_type>(value)) {}
             void addSubNodes(std::vector<std::unique_ptr<ParseNode>>&& valList){
                 for(auto&& node: valList){
                     subNodes.push_back(std::move(node));
@@ -83,7 +91,7 @@
     using namespace spl;
     using TOKEN_TYPE = Parser::token_type;
     #define BUILD_AST_NODE(__type,__typeValue,__valueType,__value,__line)\
-    	std::make_unique<ParseNode>(TOKEN_TYPE::__type, __typeValue,VALUE_TYPE::__valueType,__value,__line)
+    	std::make_unique<ParseNode>(TOKEN_TYPE::__type, __typeValue,__valueType,__value,__line)
 
     void yyerror(const std::string& msg,spl::location&loc, ERROR_TYPE err,spl::Frontage&frontage);
     
@@ -154,139 +162,144 @@
 
 %%
 
-Program: ExtDefList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Program",NONE,0,@$);$$->addSubNodes(move_all($1));frontage.m_ast.push_back(std::move($$)); }
-    | INCLUDE {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Program",NONE,0,@$);$$->addSubNodes(move_all($1));frontage.m_ast.push_back(std::move($$));}
+Program: ExtDefList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Program",$1->valueType,$1->value,@$);$$->addSubNodes(move_all($1));frontage.m_ast.push_back(std::move($$)); }
+    | INCLUDE {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Program",$1->valueType,$1->value,@$);$$->addSubNodes(move_all($1));frontage.m_ast.push_back(std::move($$));}
     | OTHER_ERROR {@$=@1; yyerror(std::get<std::string>($1->typeValue),@$,ERROR_TYPE::OTHER_ERROR,frontage);}
-    | {$$=BUILD_AST_NODE(NOTHING,0,NONE,0,@$);}
+    | {$$=BUILD_AST_NODE(NOTHING,0,ValueType::NONE,0,@$);}
 
-ExtDefList: ExtDef ExtDefList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDefList",NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
-    | {$$=BUILD_AST_NODE(NOTHING,0,NONE,0,@$);}
+ExtDefList: ExtDef ExtDefList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDefList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
+    | {$$=BUILD_AST_NODE(NOTHING,0,ValueType::NONE,0,@$);}
 
-ExtDef: Specifier ExtDecList SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDef",NONE,0,@$);
+ExtDef: Specifier ExtDecList SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDef",$1->valueType,$1->value,@$);
                                    $$->addSubNodes(move_all($1,$2,$3));}//TODO
-    | Specifier SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDef",NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
-    | Specifier FunDec CompSt {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDef",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Specifier SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDef",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
+    | Specifier FunDec CompSt {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDef",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
     | Specifier ExtDecList error {@$=@1; yyerror ("missing ';'", @$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
     | Specifier error {@$=@1; yyerror ("missing ';'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
     | error SEMI {@$=@1; yyerror ("missing specifier",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
 
-ExtDecList: VarDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDecList",NONE,0,@$); $$->addSubNodes(move_all($1));}
-    | VarDec COMMA ExtDecList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDecList",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
+ExtDecList: VarDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDecList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
+    | VarDec COMMA ExtDecList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDecList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
     | VarDec COMMA error {@$=@1; yyerror ("missing ExtDecList",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
    // | VarDec error ExtDecList  {@$=@1;yyerror("missing ','",@$, ERROR_TYPE::SYNTAX_ERROR,frontage);}
 
-Specifier: TYPE {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Specifier",NONE,0,@$); $$->addSubNodes(move_all($1));}
-    | StructSpecifier {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Specifier",NONE,0,@$); $$->addSubNodes(move_all($1));};
+Specifier: TYPE {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Specifier",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
+    | StructSpecifier {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Specifier",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));};
 
-StructSpecifier: STRUCT ID LC DefList RC {@$=@1; $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3,$4,$5));}
-    | STRUCT ID {@$=@1; $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier",NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
+StructSpecifier: STRUCT ID LC DefList RC {@$=@1; $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier",$2->valueType,$2->value,@$);
+                                          //TODO
+                                          $$->addSubNodes(move_all($1,$2,$3,$4,$5));}
+    | STRUCT ID {@$=@1; $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier",$2->valueType,$2->value,@$); $$->addSubNodes(move_all($1,$2));}
     | STRUCT ID LC DefList error {@$=@1; yyerror ("missing '}'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
 
-VarDec: ID {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"VarDec",NONE,$1->value,@$); $$->addSubNodes(move_all($1));}
-    | VarDec LB INT RB {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"VarDec",NONE,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
+VarDec: ID {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"VarDec",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
+    | VarDec LB INT RB {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"VarDec",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
     | VarDec LB INT error {@$=@1; yyerror ("missing ']'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage);}
     | LEXICAL_ERROR {@$=@1; yyerror(std::get<std::string>($1->typeValue),@$,ERROR_TYPE::LEXICAL_ERROR,frontage);}
 
-FunDec: ID LP VarList RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "FunDec",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
-    | ID LP RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "FunDec",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));};
+FunDec: ID LP VarList RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "FunDec",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
+    | ID LP RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "FunDec",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));};
     | ID LP VarList error {@$=@1; yyerror ("missing ')'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
     | ID LP error {@$=@1; yyerror ("missing ')'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
 
-VarList: ParamDec COMMA VarList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "VarList",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | ParamDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "VarList",NONE,0,@$); $$->addSubNodes(move_all($1));}
+VarList: ParamDec COMMA VarList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "VarList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | ParamDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "VarList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
     | ParamDec COMMA error {@$=@1;yyerror("missing arguments",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
 
 
-ParamDec: Specifier VarDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "ParamDec",NONE,0,@$); $$->addSubNodes(move_all($1,$2));};
+ParamDec: Specifier VarDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "ParamDec",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));};
     | error VarDec {@$=@1;yyerror("missing specifier",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
     | Specifier error {@$=@1;yyerror("missing variable",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
 
-CompSt: LC DefList StmtList RC {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "CompSt",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
+CompSt: LC DefList StmtList RC {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "CompSt",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
     //| LC DefList StmtList error {@$=@1; yyerror ("missing '}'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
 
 
-StmtList: Stmt StmtList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "StmtList",NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
-    | {$$=BUILD_AST_NODE(NOTHING, 0,NONE,0,@$);}
+StmtList: Stmt StmtList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "StmtList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
+    | {$$=BUILD_AST_NODE(NOTHING, 0,ValueType::NONE,0,@$);}
 
-Stmt: Exp SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
-    | CompSt {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",NONE,0,@$); $$->subNodes.push_back(std::move($1));}
-    | RETURN Exp SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",NONE,0,@$);$$->addSubNodes(move_all($1,$2,$3));}
-    | IF LP Exp RP Stmt ELSE Stmt {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3,$4,$5,$6,$7));}
-    | IF LP Exp RP Stmt %prec LOW_THAN_ELSE {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3,$4,$5));}
-    | WHILE LP Exp RP Stmt {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3,$4,$5));}
+Stmt: Exp SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
+    | CompSt {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",$1->valueType,$1->value,@$); $$->subNodes.push_back(std::move($1));}
+    | RETURN Exp SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",$1->valueType,$1->value,@$);$$->addSubNodes(move_all($1,$2,$3));}
+    | IF LP Exp RP Stmt ELSE Stmt {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4,$5,$6,$7));}
+    | IF LP Exp RP Stmt %prec LOW_THAN_ELSE {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4,$5));}
+    | WHILE LP Exp RP Stmt {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4,$5));}
     | WHILE LP Exp error Stmt {@$=@1;yyerror("missing ')'",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
     //| Exp error {@$=@1;yyerror("missing ';'",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
     | RETURN Exp error {@$=@1;yyerror("missing ';'",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
     | IF LP Exp error Stmt  {@$=@1;yyerror("missing ')'",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
     | IF error Exp RP Stmt {@$=@1;yyerror("missing '('",@$,ERROR_TYPE::SYNTAX_ERROR,frontage); }
 
-DefList: Def DefList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "DefList",NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
-    | {$$=BUILD_AST_NODE(NOTHING, 0,NONE,0,@$);}
+DefList: Def DefList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "DefList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
+    | {$$=BUILD_AST_NODE(NOTHING, 0,ValueType::NONE,0,@$);}
 
-Def: Specifier DecList SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Def",NONE,0,@$);
-                                     if($1->subNodes.front()->type==TOKEN_TYPE::TYPE){
-                                         std::cout<<"type\n";
-                                         for(const auto& node:$2->subNodes){
-                                         }
-                                     }else{
-                                         std::cout<<"struct\n";
-                                     }
-
-                             $$->addSubNodes(move_all($1,$2,$3));}
+Def: Specifier DecList SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Def",$1->valueType,$1->value,@$);
+                                const auto* baseNode = &$2;
+                                while(true) {
+                                    const auto& subNodes = (*baseNode)->subNodes;
+                                    if(auto res=declareVariable(frontage.m_defTables.back(),frontage.m_varTables.back(),$1,subNodes.front()))
+                                         yyerror(res.value(), @$, ERROR_TYPE::SEMANTIC_ERROR, frontage);
+                                    if(subNodes.size() == 1) {
+                                        break;
+                                    } else {
+                                        baseNode = &subNodes.back();
+                                    }
+                                }
+                            $$->addSubNodes(move_all($1,$2,$3));}
     | Specifier DecList error {@$=@1; yyerror ("missing ';'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
     |error DecList SEMI {@$=@1; yyerror ("missing specifier",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
 
 
-DecList: Dec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "DecList",NONE,0,@$); $$->addSubNodes(move_all($1));}
-    | Dec COMMA DecList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "DecList",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
+DecList: Dec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "DecList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
+    | Dec COMMA DecList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "DecList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
     | Dec COMMA error {@$=@1; yyerror ("missing DecList",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
     //| Dec error DecList {@$=@1;yyerror("missing ','",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
 
-Dec: VarDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Dec",NONE,0,@$); $$->addSubNodes(move_all($1));}
-    | VarDec ASSIGN Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Dec",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));};
+Dec: VarDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Dec",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
+    | VarDec ASSIGN Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Dec",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));};
 
-Exp: Exp ASSIGN Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$);
+Exp: Exp ASSIGN Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$);
                     if(auto res=canAssign($1,$3))
                         yyerror(res.value(),@$,ERROR_TYPE::SEMANTIC_ERROR,frontage);
                     $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp AND Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp OR Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp LT Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp LE Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp GT Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp GE Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp NE Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp EQ Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp PLUS Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp MINUS Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp PLUS_EQUAL Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp MINUS_EQUAL Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp MUL Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp DIV Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp MUL_EQUAL Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp DIV_EQUAL Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | LP Exp RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp AND Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp OR Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp LT Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp LE Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp GT Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp GE Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp NE Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp EQ Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp PLUS Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp MINUS Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp PLUS_EQUAL Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp MINUS_EQUAL Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp MUL Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp DIV Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp MUL_EQUAL Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp DIV_EQUAL Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | LP Exp RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
     | LP Exp error {@$=@1; yyerror ("missing ')'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
-    | MINUS Exp %prec LOWER_MINUS {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
-    | PLUS Exp %prec LOWER_PLUS {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
-    | NOT Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
-    | ID LP Args RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
+    | MINUS Exp %prec LOWER_MINUS {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
+    | PLUS Exp %prec LOWER_PLUS {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
+    | NOT Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
+    | ID LP Args RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
     | ID LP Args error {@$=@1; yyerror ("missing ')'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
-    | ID LP RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | ID LP RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
     //| ID LP error {@$=@1; yyerror ("missing ')'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
-    | Exp LB Exp RB {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
+    | Exp LB Exp RB {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
     | Exp LB Exp error {@$=@1; yyerror ("missing ']'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
-    | Exp DOT ID {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp DOT ID {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
     | Exp DOT error {@$=@1; yyerror ("missing ID",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
-    | ID {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",NONE,0,@$); $$->addSubNodes(move_all($1));}
-    | INT {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",INT,$1->value,@$);$$->addSubNodes(move_all($1));}
-    | FLOAT {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",FLOAT,$1->value,@$); $$->addSubNodes(move_all($1));}
-    | CHAR {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",CHAR,$1->value,@$); $$->addSubNodes(move_all($1));}
+    | ID {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
+    | INT {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$);$$->addSubNodes(move_all($1));}
+    | FLOAT {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
+    | CHAR {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
     | Exp LEXICAL_ERROR Exp {@$=@1;yyerror(std::get<std::string>($2->typeValue),@2,ERROR_TYPE::LEXICAL_ERROR,frontage);}
     | LEXICAL_ERROR {@$=@1;yyerror(std::get<std::string>($1->typeValue),@$,ERROR_TYPE::LEXICAL_ERROR,frontage);}
 
-Args: Exp COMMA Args {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Args",NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
-    | Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Args",NONE,0,@$); $$->addSubNodes(move_all($1));}
+Args: Exp COMMA Args {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Args",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Args",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
     //| Exp error Args {@$=@1;yyerror("missing ','",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
 
 %%
@@ -304,7 +317,7 @@ void yyerror(const std::string& msg,spl::location&loc, ERROR_TYPE err, spl::Fron
             ss << "Error type B at Line " << loc.end.line<<":"<<msg ;
             break;
         case ERROR_TYPE::SEMANTIC_ERROR:
-            ss << "Error type "<< msg.substr(0,2)<<" at Line " << loc.end.line<<":"<<msg.substr(2);
+            ss << "Error type "<< msg.substr(0,2)<<" at Line " << loc.end.line<<": "<<msg.substr(2);
             break;
         case ERROR_TYPE::OTHER_ERROR:
             ss << "Other error: " << msg ;

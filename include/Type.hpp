@@ -30,39 +30,37 @@ namespace spl {
                                                                          "",
                                                                          "" };
 
-    enum class DefType { INT, FLOAT, CHAR, BOOL, VOID, ARRAY, STRUCT, FUNCTION };
-
     struct FuncDef {
-        std::vector<DefType> argTypes;
+        std::vector<ValueType> argTypes;
         std::vector<std::string> argIds;
-        DefType retType;
+        ValueType retType;
     };
 
     struct AryDef {
-        DefType subType;
+        ValueType subType;
         size_t size;
         std::unique_ptr<AryDef> subAry;
     };
 
     struct StructDef {
-        std::vector<DefType> memberTypes;
+        std::vector<ValueType> memberTypes;
         std::vector<std::string> memberIds;
     };
 
     struct DefNode {
-        DefType type;
+        ValueType type;
         std::string name;
         std::variant<FuncDef, AryDef, StructDef> val;
     };
 
     struct VarNode {
-        DefType type;
+        ValueType type;
         std::string id;
         std::any val;
     };
 
     using DefTable = std::unordered_map<std::string, DefNode>;
-    using VarTable = std::unordered_map<std::string, VarNode>;  // TODO: scope
+    using VarTable = std::unordered_map<std::string, VarNode>;
 
     bool isInt(const NodeType& node);
 
@@ -71,6 +69,12 @@ namespace spl {
     bool isChar(const NodeType& node);
 
     std::optional<std::string> canAssign(const NodeType& lhs, const NodeType& rhs);
+
+    std::optional<std::string> declareVariable(DefTable& defTable, VarTable& varTable, const NodeType& specifier,
+                                               const NodeType& node);
+
+    std::optional<std::string> defineStruct(std::unordered_map<std::string, DefNode>, const NodeType& structSpecifier);
+
 }  // namespace spl
 
 #endif

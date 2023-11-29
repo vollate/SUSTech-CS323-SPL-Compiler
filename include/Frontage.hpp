@@ -29,8 +29,8 @@ namespace spl {
 
         std::optional<std::string> findHeaderUser(const std::string &headerName, const std::string filePath);
 
-        std::list<DefTable> m_defTableStack;
-        std::list<VarTable> m_varTableStack;
+        std::list<DefTable> m_defTables;
+        std::list<VarTable> m_varTables;
 
         Frontage(std::string const &filePath);
 
@@ -50,8 +50,8 @@ namespace spl {
         std::list<std::unique_ptr<Frontage>> m_includeTree;
         Scanner m_scanner;
         Parser m_parser;
-        std::list<std::unique_ptr<ParseNode>> m_ast;
-        std::list<std::string> m_errors;
+        std::vector<std::unique_ptr<ParseNode>> m_ast;
+        std::vector<std::string> m_errors;
         spl::location m_location;
 
         bool sysFirstInclude(const std::string &name);

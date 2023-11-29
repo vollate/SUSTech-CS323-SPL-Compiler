@@ -14,14 +14,8 @@
 
 	//#define YY_USER_ACTION m_frontage.increaseLocation(yyleng);
 
-#ifdef SPL_DEBUG
-	#define GENERATE_RETURN_TOKEN(__name,__type,__type_value,__value_type,__value)\
-{	cout<<"type: "<<#__name<<"\tvalue: "<<__type_value<<'\n';\
-return Parser::make_##__name(std::make_unique<ParseNode>(TOKEN_TYPE::__type,__type_value,VALUE_TYPE::__value_type,__value,m_frontage.location()),m_frontage.location());}
-#else
     #define GENERATE_RETURN_TOKEN(__name,__type,__type_value,__value_type,__value)\
-    return Parser::make_##__name(std::make_unique<ParseNode>(TOKEN_TYPE::__type,__type_value,VALUE_TYPE::__value_type,__value,m_frontage.location()),m_frontage.location())
-#endif
+    return Parser::make_##__name(std::make_unique<ParseNode>(TOKEN_TYPE::__type,__type_value,ValueType::__value_type,__value,m_frontage.location()),m_frontage.location())
 %}
 
 %option nodefault
@@ -80,9 +74,9 @@ include_u \#{space}*include{space}*\"[^\"]+\"
 "//".*  { /* Ignore single line comments */ }
 "/*"([^*]|\*[^/])*"*/" { /* Ignore multi line comments */ }
 
-"int"    { GENERATE_RETURN_TOKEN(TYPE, TYPE, "int",NONE,0); }
-"float"  { GENERATE_RETURN_TOKEN(TYPE, TYPE, "float",NONE,0); }
-"char"   { GENERATE_RETURN_TOKEN(TYPE, TYPE, "char",NONE,0); }
+"int"    { GENERATE_RETURN_TOKEN(TYPE, TYPE, "int",TYPE,"int"); }
+"float"  { GENERATE_RETURN_TOKEN(TYPE, TYPE, "float",TYPE,"float"); }
+"char"   { GENERATE_RETURN_TOKEN(TYPE, TYPE, "char", TYPE,"char"); }
 "struct" { GENERATE_RETURN_TOKEN(STRUCT, STRUCT, "STRUCT",NONE,0); }
 "if"     { GENERATE_RETURN_TOKEN(IF, IF, "IF",NONE,0); }
 "else"   { GENERATE_RETURN_TOKEN(ELSE, ELSE, "ELSE",NONE,0); }
@@ -117,7 +111,7 @@ include_u \#{space}*include{space}*\"[^\"]+\"
 "{"      { GENERATE_RETURN_TOKEN(LC, LC, "LC",NONE,0); }
 "}"      { GENERATE_RETURN_TOKEN(RC, RC, "RC",NONE,0); }
 
-{ID}     { GENERATE_RETURN_TOKEN(ID, ID, std::string(yytext),NONE,0); }
+{ID}     { GENERATE_RETURN_TOKEN(ID, ID, std::string(yytext),ID,std::string(yytext)); }
 
 {int32_dec} { int32_t val=atoi(yytext); GENERATE_RETURN_TOKEN(INT, INT, val,INT,val); }
 {int32_hex} { int32_t val=static_cast<int32_t>(strtol(yytext, nullptr, 0)); GENERATE_RETURN_TOKEN(INT, INT, val, INT, val); }
