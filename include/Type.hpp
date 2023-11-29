@@ -1,5 +1,5 @@
-#ifndef SPL_TYPE
-#define SPL_TYPE
+#ifndef SPL_TYPE_H
+#define SPL_TYPE_H
 
 #include "Parser.hpp"
 

@@ -17,7 +17,7 @@
 
 namespace spl {
     struct ParseNode;
-    using token_type = Parser::token_type;
+    using TOKEN_TYPE = Parser::token_type;
     using variant_type = std::variant<int32_t, float, std::string>;
 
     class Frontage {
