@@ -9,14 +9,14 @@ int main(int argc, char **argv) {
     spl::Frontage instance(argv[1]);
     bool succeed = instance.parse();
     if (succeed) {
-        std::cout << instance.str() << '\n';
+        std::cout << instance.parseTree() << '\n';
     } else {
         std::cerr << "parse failed\n";
     }
     if (argc == 3) {
         std::cout << "writing to file: " << argv[2] << '\n';
         std::fstream file(argv[2], std::ios::out);
-        file << (succeed ? instance.str() : instance.error());
+        file << (succeed ? instance.parseTree() : instance.syntaxError());
     }
 
 

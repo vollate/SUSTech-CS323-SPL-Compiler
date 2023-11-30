@@ -7,4 +7,4 @@ else ()
     BISON_TARGET(bison_parser Parser.y ${CMAKE_PRECOMPILE_OUTPUT_DIR}/Parser.cpp
             DEFINES_FILE ${CMAKE_PRECOMPILE_OUTPUT_DIR}/Parser.hpp)
 endif ()
-add_library(parser ${BISON_bison_parser_OUTPUTS} "../Type.cpp")
+add_library(parser ${BISON_bison_parser_OUTPUTS})

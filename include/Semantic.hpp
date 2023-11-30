@@ -1,10 +1,13 @@
 #ifndef SPL_TYPE_H
+
 #define SPL_TYPE_H
 
 #include "Parser.hpp"
 
 #include <any>
 #include <array>
+#include <cstdint>
+#include <list>
 #include <memory>
 #include <optional>
 #include <string>
@@ -13,7 +16,6 @@
 #include <vector>
 
 namespace spl {
-    using namespace spl;
     inline const std::array<const char*, 15> SEMANTIC_ERROR_TEMPLATE = { " is used without a definition",
                                                                          " is invoked without a definition",
                                                                          " is redefined in the same scope",
@@ -62,18 +64,33 @@ namespace spl {
     using DefTable = std::unordered_map<std::string, DefNode>;
     using VarTable = std::unordered_map<std::string, VarNode>;
 
-    bool isInt(const NodeType& node);
+    class SemanticAnalysizer {
 
-    bool isFloat(const NodeType& node);
+        Frontage& frontage;
 
-    bool isChar(const NodeType& node);
+        std::list<DefTable> m_defTables;
+        std::list<VarTable> m_varTables;
+        std::vector<std::string> m_errors;
 
-    std::optional<std::string> canAssign(const NodeType& lhs, const NodeType& rhs);
+        void appendError(int errorId, const location& location, std::string& msg);
 
-    std::optional<std::string> declareVariable(DefTable& defTable, VarTable& varTable, const NodeType& specifier,
-                                               const NodeType& node);
+        bool isInt(const NodeType& node);
 
-    std::optional<std::string> defineStruct(std::unordered_map<std::string, DefNode>, const NodeType& structSpecifier);
+        bool isFloat(const NodeType& node);
+
+        bool isChar(const NodeType& node);
+
+        bool canAssign(const NodeType& lhs, const NodeType& rhs);
+
+        bool declareVariable(const NodeType& specifier, const NodeType& node);
+
+        bool defineStruct(const NodeType& structSpecifier);
+
+    public:
+        SemanticAnalysizer(Frontage& frontage) : frontage(frontage) {}
+        bool analyze();
+        std::string getErrors() const;
+    };
 
 }  // namespace spl
 

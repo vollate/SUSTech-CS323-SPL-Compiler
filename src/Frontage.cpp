@@ -9,17 +9,20 @@ using namespace spl;
 
 namespace {}  // namespace
 
-Frontage::Frontage(std::string const& filePath) : m_scanner(*this, filePath), m_parser(m_scanner, *this), m_location() {
+Frontage::Frontage(std::string const& filePath)
+    : m_scanner(*this, filePath), m_parser(m_scanner, *this), m_semanticAnalysizer(*this), m_location() {
     std::vector<std::string> SysIncludePath = { "/usr/lib/gcc/x86_64-pc-linux-gnu/13.2.1/include", "/usr/local/include",
                                                 "/usr/lib/gcc/x86_64-pc-linux-gnu/13.2.1/include-fixed", "/usr/include" };
 }
 
 bool Frontage::parse() {
     clear();
-    m_defTables.emplace_back();
-    m_varTables.emplace_back();
     m_parser.parse();
     return m_errors.empty();
+}
+
+bool Frontage::semantic() {
+    return m_semanticAnalysizer.analyze();
 }
 
 void Frontage::clear() {
@@ -27,8 +30,6 @@ void Frontage::clear() {
     m_ast.clear();
     m_includeTree.clear();
     m_errors.clear();
-    m_defTables.clear();
-    m_varTables.clear();
 }
 
 template <typename... T>
@@ -75,7 +76,7 @@ static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ParseNo
     }
 }
 
-std::string Frontage::str() const {
+std::string Frontage::parseTree() const {
     std::stringstream s;
     for(auto& node : m_ast) {
         recursiveConvert(s, node);
@@ -91,7 +92,7 @@ void Frontage::increaseLine(int32_t line) {
     m_location.end.line += line;
 }
 
-void Frontage::appendError(const string& error) {
+void Frontage::appendSyntaxError(const string& error) {
     m_errors.push_back(error);
 }
 
@@ -111,12 +112,16 @@ bool Frontage::userFirstInclude(const std::string& name) {
     return false;
 }
 
-std::string Frontage::error() const {
+std::string Frontage::syntaxError() const {
     std::stringstream s;
     for(auto& error : m_errors) {
         s << error << '\n';
     }
     return s.str();
+}
+
+std::string Frontage::semanticError() const {
+    return m_semanticAnalysizer.getErrors();
 }
 
 std::optional<std::string> Frontage::findHeaderSys(const std::string& headerName) {

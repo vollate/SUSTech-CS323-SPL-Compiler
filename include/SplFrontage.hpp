@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Type.hpp"
+#include "Semantic.hpp"
 #include "Parser.hpp"
 #include "Frontage.hpp"
 

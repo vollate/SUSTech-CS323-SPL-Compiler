@@ -43,6 +43,7 @@
             FUNCTION,
             STRUCT,
             ARRAY,
+            ERROR,
             NONE,
         };
 
@@ -82,7 +83,7 @@
     #include "Scanner.hpp"
     #include "Parser.hpp"
     #include "Frontage.hpp"
-    #include "Type.hpp"
+    #include "Semantic.hpp"
 
     static spl::Parser::symbol_type yylex(spl::Scanner &scanner, spl::Frontage &frontage) {
         return scanner.next_token();
@@ -170,8 +171,7 @@ Program: ExtDefList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Program",$1->valueTyp
 ExtDefList: ExtDef ExtDefList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDefList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
     | {$$=BUILD_AST_NODE(NOTHING,0,ValueType::NONE,0,@$);}
 
-ExtDef: Specifier ExtDecList SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDef",$1->valueType,$1->value,@$);
-                                   $$->addSubNodes(move_all($1,$2,$3));}//TODO
+ExtDef: Specifier ExtDecList SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDef",$1->valueType,$1->value,@$);$$->addSubNodes(move_all($1,$2,$3));}
     | Specifier SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDef",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
     | Specifier FunDec CompSt {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDef",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
     | Specifier ExtDecList error {@$=@1; yyerror ("missing ';'", @$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
@@ -186,9 +186,7 @@ ExtDecList: VarDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"ExtDecList",$1->valueT
 Specifier: TYPE {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Specifier",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
     | StructSpecifier {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL,"Specifier",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));};
 
-StructSpecifier: STRUCT ID LC DefList RC {@$=@1; $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier",$2->valueType,$2->value,@$);
-                                          //TODO
-                                          $$->addSubNodes(move_all($1,$2,$3,$4,$5));}
+StructSpecifier: STRUCT ID LC DefList RC {@$=@1; $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier",$2->valueType,$2->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4,$5));}
     | STRUCT ID {@$=@1; $$=BUILD_AST_NODE(NON_TERMINAL, "StructSpecifier",$2->valueType,$2->value,@$); $$->addSubNodes(move_all($1,$2));}
     | STRUCT ID LC DefList error {@$=@1; yyerror ("missing '}'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
 
@@ -206,14 +204,12 @@ VarList: ParamDec COMMA VarList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "VarList"
     | ParamDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "VarList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
     | ParamDec COMMA error {@$=@1;yyerror("missing arguments",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
 
-
 ParamDec: Specifier VarDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "ParamDec",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));};
     | error VarDec {@$=@1;yyerror("missing specifier",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
     | Specifier error {@$=@1;yyerror("missing variable",@$,ERROR_TYPE::SYNTAX_ERROR,frontage);}
 
 CompSt: LC DefList StmtList RC {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "CompSt",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
     //| LC DefList StmtList error {@$=@1; yyerror ("missing '}'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
-
 
 StmtList: Stmt StmtList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "StmtList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
     | {$$=BUILD_AST_NODE(NOTHING, 0,ValueType::NONE,0,@$);}
@@ -233,19 +229,7 @@ Stmt: Exp SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Stmt",$1->valueType,$1->v
 DefList: Def DefList {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "DefList",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2));}
     | {$$=BUILD_AST_NODE(NOTHING, 0,ValueType::NONE,0,@$);}
 
-Def: Specifier DecList SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Def",$1->valueType,$1->value,@$);
-                                const auto* baseNode = &$2;
-                                while(true) {
-                                    const auto& subNodes = (*baseNode)->subNodes;
-                                    if(auto res=declareVariable(frontage.m_defTables.back(),frontage.m_varTables.back(),$1,subNodes.front()))
-                                         yyerror(res.value(), @$, ERROR_TYPE::SEMANTIC_ERROR, frontage);
-                                    if(subNodes.size() == 1) {
-                                        break;
-                                    } else {
-                                        baseNode = &subNodes.back();
-                                    }
-                                }
-                            $$->addSubNodes(move_all($1,$2,$3));}
+Def: Specifier DecList SEMI {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Def",$1->valueType,$1->value,@$);$$->addSubNodes(move_all($1,$2,$3));}
     | Specifier DecList error {@$=@1; yyerror ("missing ';'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
     |error DecList SEMI {@$=@1; yyerror ("missing specifier",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
 
@@ -258,10 +242,7 @@ DecList: Dec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "DecList",$1->valueType,$1->
 Dec: VarDec {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Dec",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1));}
     | VarDec ASSIGN Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Dec",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));};
 
-Exp: Exp ASSIGN Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$);
-                    if(auto res=canAssign($1,$3))
-                        yyerror(res.value(),@$,ERROR_TYPE::SEMANTIC_ERROR,frontage);
-                    $$->addSubNodes(move_all($1,$2,$3));}
+Exp: Exp ASSIGN Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$);$$->addSubNodes(move_all($1,$2,$3));}
     | Exp AND Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
     | Exp OR Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
     | Exp LT Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
@@ -326,5 +307,5 @@ void yyerror(const std::string& msg,spl::location&loc, ERROR_TYPE err, spl::Fron
     #ifdef SPL_DEBUG
     std::cout << ss.str() << '\n';
     #endif
-    frontage.appendError(ss.str());
+    frontage.appendSyntaxError(ss.str());
 }

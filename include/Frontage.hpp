@@ -3,7 +3,7 @@
 
 #include "Parser.hpp"
 #include "Scanner.hpp"
-#include "Type.hpp"
+#include "Semantic.hpp"
 
 #include <cstdint>
 #include <list>
@@ -14,6 +14,7 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <vector>
 
 namespace spl {
     struct ParseNode;
@@ -25,38 +26,39 @@ namespace spl {
     public:
         std::vector<std::string> SysIncludePath;
 
-        std::optional<std::string> findHeaderSys(const std::string &headerName);
+        std::optional<std::string> findHeaderSys(const std::string& headerName);
 
-        std::optional<std::string> findHeaderUser(const std::string &headerName, const std::string filePath);
+        std::optional<std::string> findHeaderUser(const std::string& headerName, const std::string filePath);
 
-        std::list<DefTable> m_defTables;
-        std::list<VarTable> m_varTables;
-
-        Frontage(std::string const &filePath);
+        Frontage(std::string const& filePath);
 
         bool parse();
+        bool semantic();
 
         void clear();
 
-        std::string str() const;
+        std::string parseTree() const;
 
         spl::location location() const;
 
-        std::string error() const;
+        std::string syntaxError() const;
 
-        void appendError(std::string const &error);
+        std::string semanticError() const;
+
+        void appendSyntaxError(std::string const& error);
 
     private:
         std::list<std::unique_ptr<Frontage>> m_includeTree;
         Scanner m_scanner;
         Parser m_parser;
+        SemanticAnalysizer m_semanticAnalysizer;
         std::vector<std::unique_ptr<ParseNode>> m_ast;
         std::vector<std::string> m_errors;
         spl::location m_location;
 
-        bool sysFirstInclude(const std::string &name);
+        bool sysFirstInclude(const std::string& name);
 
-        bool userFirstInclude(const std::string &name);
+        bool userFirstInclude(const std::string& name);
 
         void increaseLine(int32_t line = 1);
 
@@ -67,7 +69,7 @@ namespace spl {
 
     class SubFrontage : public Frontage {
     public:
-        SubFrontage(std::string const &filePath);
+        SubFrontage(std::string const& filePath);
 
         friend class Parser;
 
