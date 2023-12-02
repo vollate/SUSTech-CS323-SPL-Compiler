@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- [ ] Type 1: a variable is used without a definition
+- [x] Type 1: a variable is used without a definition
 - [ ] Type 2: a function is invoked without a definition
 - [x] Type 3: a variable is redefined in the same scope
 - [x] Type 4: a function is redefined (in the global scope, since we don’t have nested functions)
@@ -18,6 +18,8 @@
 - [ ] Type 14: accessing an undefined structure member
 - [x] Type 15: redefine the same structure type
 - [x] Type 16: use struct without define or declare
+- [ ] Type 17: unmatching type on both sides of logic operation (only int can do logic operation)
+- [ ] Type 18: unmatching type on both sides of compare operation (only int/float/char can do compare operation)
 
 ## Test Cases status
 - [ ] test_2_r01.spl

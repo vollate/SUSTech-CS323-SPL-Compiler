@@ -16,22 +16,26 @@
 #include <vector>
 
 namespace spl {
-    inline const std::array<const std::string, 20> SEMANTIC_ERROR_TEMPLATE = { " is used without a definition",
-                                                                               " is invoked without a definition",
-                                                                               " is redefined in the same scope",
-                                                                               " is redefined",
-                                                                               "unmatching type on both sides of assignment",
-                                                                               "rvalue appears on the left-side of assignment",
-                                                                               "unmatching operands",
-                                                                               "incompatiable return type",
-                                                                               "invalid argument number, except ",
-                                                                               "indexing on non-array variable",
-                                                                               "invoking non-function variable",
-                                                                               "indexing by non-integer",
-                                                                               "accessing with non-struct variable",
-                                                                               "accessing an undefined structure member",
-                                                                               "redefine the same structure type",
-                                                                               "use struct without declare" };
+    inline const std::array<const std::string, 20> SEMANTIC_ERROR_TEMPLATE = {
+        " is used without a definition",
+        " is invoked without a definition",
+        " is redefined in the same scope",
+        " is redefined",
+        "unmatching type on both sides of assignment",
+        "rvalue appears on the left-side of assignment",
+        "unmatching operands",
+        "incompatiable return type",
+        "invalid argument number, except ",
+        "indexing on non-array variable",
+        "invoking non-function variable",
+        "indexing by non-integer",
+        "accessing with non-struct variable",
+        "accessing an undefined structure member",
+        "redefine the same structure type",
+        "use struct without declare",
+        "unmatching type on both sides of logic operation",
+        "unmatching type on both sides of compare operation"
+    };
 
     struct AryDef {
         ValueType type;
@@ -76,15 +80,21 @@ namespace spl {
         std::vector<std::string> m_errors;
         std::vector<std::pair<std::string, FunDef>> waitFun;
 
+        std::optional<VarNode> getVarNode(const std::string& id) const;
+
         void appendError(int errorId, const location& location, const std::string& msg);
+
+        bool processStmt(const FunDef& funDef, NodeType& stmt);
+
+        bool canAssign(const NodeType& lhs, const NodeType& rhs);
 
         bool processDec(NodeType& specifier, NodeType& dec);
 
         bool processDec(StructDef& structDef, NodeType& specifier, NodeType& dec);
 
-        ValueType processExp(NodeType& exp);
+        void processExp(NodeType& exp);
 
-        bool processVarDec(NodeType& specifier, NodeType& varDec);
+        bool processVarDec(NodeType& specifier, NodeType& varDec, bool structDef = false);
 
         bool processDecList(NodeType& specifier, NodeType& decList);
 
@@ -121,6 +131,8 @@ namespace spl {
         bool declareVariable(NodeType& specifier, const NodeType& var);
 
         SymbolTableble& getSymbolTable();
+
+        std::optional<DefNode> getDefNode(const std::string& id, ValueType type);
 
         void insertSymbolTable(const std::string& id, const DefNode& defNode);
 

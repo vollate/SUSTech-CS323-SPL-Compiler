@@ -12,7 +12,7 @@ int main(int argc, char **argv) {
 //        std::cerr<<instance.parseTree();
         succeed = instance.semantic();
         if (!succeed) {
-            std::cerr << "semantic error\n";
+            std::cerr << "semantic error\n==========================\n" << instance.semanticError();
         }
     } else {
         std::cerr << "syntax error\n";
