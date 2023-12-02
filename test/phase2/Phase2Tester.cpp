@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     spl::Frontage instance(argv[1]);
     bool succeed = instance.parse();
     if (succeed) {
-        std::cerr<<instance.parseTree();
+//        std::cerr<<instance.parseTree();
         succeed = instance.semantic();
         if (!succeed) {
             std::cerr << "semantic error\n";

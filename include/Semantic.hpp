@@ -16,22 +16,22 @@
 #include <vector>
 
 namespace spl {
-    inline const std::array<const char*, 20> SEMANTIC_ERROR_TEMPLATE = { " is used without a definition",
-                                                                         " is invoked without a definition",
-                                                                         " is redefined in the same scope",
-                                                                         " is redefined",
-                                                                         "unmatching type on both sides of assignment",
-                                                                         "rvalue appears on the left-side of assignment",
-                                                                         "unmatching operands",
-                                                                         "incompatiable return type",
-                                                                         "invalid argument number, except ",
-                                                                         "indexing on non-array variable",
-                                                                         "invoking non-function variable",
-                                                                         "indexing by non-integer",
-                                                                         "accessing with non-struct variable",
-                                                                         "accessing an undefined structure member",
-                                                                         "redefine the same structure type",
-                                                                         "use struct without declare" };
+    inline const std::array<const std::string, 20> SEMANTIC_ERROR_TEMPLATE = { " is used without a definition",
+                                                                               " is invoked without a definition",
+                                                                               " is redefined in the same scope",
+                                                                               " is redefined",
+                                                                               "unmatching type on both sides of assignment",
+                                                                               "rvalue appears on the left-side of assignment",
+                                                                               "unmatching operands",
+                                                                               "incompatiable return type",
+                                                                               "invalid argument number, except ",
+                                                                               "indexing on non-array variable",
+                                                                               "invoking non-function variable",
+                                                                               "indexing by non-integer",
+                                                                               "accessing with non-struct variable",
+                                                                               "accessing an undefined structure member",
+                                                                               "redefine the same structure type",
+                                                                               "use struct without declare" };
 
     struct AryDef {
         ValueType type;
@@ -44,12 +44,13 @@ namespace spl {
         std::vector<std::string> argIds;
         std::vector<std::pair<int, AryDef>> argAry;
         ValueType returnType;
-        std::string returnTypeValue;
+        std::string returnTypeName;
     };
 
     struct StructDef {
         std::vector<ValueType> memberTypes;
         std::vector<std::string> memberIds;
+        std::vector<std::pair<int, AryDef>> memberAry;
     };
 
     struct DefNode {
@@ -63,7 +64,7 @@ namespace spl {
         std::any val;
     };
 
-    using SymbolTableble = std::unordered_map<std::string, DefNode>;
+    using SymbolTableble = std::unordered_map<std::string, std::list<DefNode>>;
     using VarTable = std::unordered_map<std::string, VarNode>;
 
     class SemanticAnalyzer {
@@ -73,47 +74,55 @@ namespace spl {
         std::list<SymbolTableble> m_symbolTables;
         std::list<VarTable> m_varTables;
         std::vector<std::string> m_errors;
-        std::vector<std::pair<std::string, FunDef>> waitToken;
+        std::vector<std::pair<std::string, FunDef>> waitFun;
 
         void appendError(int errorId, const location& location, const std::string& msg);
 
-        bool dealDec(const NodeType& specifier, NodeType& dec);
+        bool processDec(NodeType& specifier, NodeType& dec);
 
-        ValueType dealExp(NodeType& exp);
+        bool processDec(StructDef& structDef, NodeType& specifier, NodeType& dec);
 
-        bool dealVarDec(const NodeType& specifier, NodeType& varDec);
+        ValueType processExp(NodeType& exp);
 
-        bool dealDecList(NodeType& specifier, NodeType& decList);
+        bool processVarDec(NodeType& specifier, NodeType& varDec);
 
-        void dealExtDef(NodeType& extDef);
+        bool processDecList(NodeType& specifier, NodeType& decList);
 
-        bool dealArgs(NodeType& args);
+        bool processDecList(StructDef& structDef, NodeType& specifier, NodeType& decList);
 
-        void dealSpecifier(NodeType& specifier);
+        void processExtDef(NodeType& extDef);
 
-        void dealStructSpecifier(NodeType& structSpecifier);
+        bool processArgs(NodeType& args);
 
-        std::optional<FunDef> dealFunDec(NodeType& specifier, NodeType& funDec);
+        bool processSpecifier(NodeType& specifier);
 
-        bool dealDefList(NodeType& defList);
+        bool processStructSpecifier(NodeType& structSpecifier);
 
-        bool dealDef(NodeType& def);
+        std::optional<FunDef> processFunDec(NodeType& specifier, NodeType& funDec);
 
-        bool dealDefList(const std::string& structId, NodeType& defList);
+        bool processDefList(NodeType& defList);
 
-        bool declareVariable(const NodeType& specifier, const NodeType& var);
+        bool processDefList(StructDef& structDef, NodeType& defList);
 
-        bool dealParamDec(NodeType& paramDec, FunDef& funDef);
+        bool processDef(StructDef& structDef, NodeType& defList);
 
-        bool dealVarList(NodeType& varList, FunDef& funDef);
+        bool processDef(NodeType& def);
 
-        bool dealStmtList(const FunDef& funDef, NodeType& stmtList);
+        bool processParamDec(NodeType& paramDec, FunDef& funDef);
 
-        void dealExtDefList(NodeType& extDefList);
+        bool processVarList(NodeType& varList, FunDef& funDef);
 
-        bool dealCompSt(const FunDef& funDef, NodeType& compSt);
+        bool processStmtList(const FunDef& funDef, NodeType& stmtList);
+
+        void processExtDefList(NodeType& extDefList);
+
+        bool processCompSt(const FunDef& funDef, NodeType& compSt);
+
+        bool declareVariable(NodeType& specifier, const NodeType& var);
 
         SymbolTableble& getSymbolTable();
+
+        void insertSymbolTable(const std::string& id, const DefNode& defNode);
 
         bool hadDefined(const std::string& id, ValueType type);
 
