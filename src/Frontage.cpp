@@ -27,7 +27,7 @@ bool Frontage::semantic() {
 
 void Frontage::clear() {
     m_location = spl::location();
-    m_ast.clear();
+    m_parseTree.clear();
     m_includeTree.clear();
     m_errors.clear();
 }
@@ -78,7 +78,7 @@ static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ParseNo
 
 std::string Frontage::parseTree() const {
     std::stringstream s;
-    for(auto& node : m_ast) {
+    for(auto& node : m_parseTree) {
         recursiveConvert(s, node);
     }
     return s.str();

@@ -51,8 +51,8 @@ namespace spl {
         std::list<std::unique_ptr<Frontage>> m_includeTree;
         Scanner m_scanner;
         Parser m_parser;
-        SemanticAnalysizer m_semanticAnalysizer;
-        std::vector<std::unique_ptr<ParseNode>> m_ast;
+        SemanticAnalyzer m_semanticAnalysizer;
+        std::vector<std::unique_ptr<ParseNode>> m_parseTree;
         std::vector<std::string> m_errors;
         spl::location m_location;
 
@@ -65,6 +65,8 @@ namespace spl {
         friend class Parser;
 
         friend class Scanner;
+
+        friend class SemanticAnalyzer;
     };
 
     class SubFrontage : public Frontage {

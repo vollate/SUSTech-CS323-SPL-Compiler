@@ -17,4 +17,5 @@
 - [ ] Type 13: accessing members of a non-structure variable (i.e., misuse the dot operator)
 - [ ] Type 14: accessing an undefined structure member
 - [ ] Type 15: redefine the same structure type
+- [ ] Type 16: use struct without define or declare
 
