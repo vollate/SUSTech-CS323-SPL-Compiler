@@ -1,6 +1,5 @@
 int sum(int x, int y)
 {
-  int a;
   int res = x + y + z;
   return res;
 }

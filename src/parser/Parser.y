@@ -60,13 +60,17 @@
             ValueType valueType;
             variant_type value;
             location loc;
+            bool isRvalue=false;
+            bool isSubStruct=false;
+            bool isSubArray=false;
+            size_t aryLevel=0;
             std::vector<std::unique_ptr<ParseNode>> subNodes;
 
             ParseNode()=default;
             ParseNode(const ParseNode&rhs)=delete;
             ParseNode& operator=(const ParseNode&rhs)=delete;
-            ParseNode(int32_t type, const variant_type &typeValue,ValueType valueType,const variant_type& value,location& loc) : type(type),loc(std::forward<spl::location>(loc)), typeValue(typeValue),valueType(valueType),value(value) {}
-            ParseNode(int32_t type, variant_type &&typeValue,ValueType valueType,variant_type&& value,location&& loc) : type(type),loc(std::forward<spl::location>(loc)), typeValue(std::forward<variant_type>(typeValue)),valueType(valueType),value(std::forward<variant_type>(value)) {}
+            ParseNode(int32_t type, const variant_type &typeValue,ValueType valueType,const variant_type& value,location& loc) : type(type),loc(std::forward<spl::location>(loc)), typeValue(typeValue),valueType(valueType),value(value){}
+            ParseNode(int32_t type, variant_type &&typeValue,ValueType valueType,variant_type&& value,location&& loc) : type(type),loc(std::forward<spl::location>(loc)), typeValue(std::forward<variant_type>(typeValue)),valueType(valueType),value(std::forward<variant_type>(value)){}
             void addSubNodes(std::vector<std::unique_ptr<ParseNode>>&& valList){
                 for(auto&& node: valList){
                     subNodes.push_back(std::move(node));
@@ -262,11 +266,11 @@ Exp: Exp ASSIGN Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE
     | MINUS Exp %prec LOWER_MINUS {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
     | PLUS Exp %prec LOWER_PLUS {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
     | NOT Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE,0,@$); $$->addSubNodes(move_all($1,$2));}
-    | ID LP Args RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
+    | ID LP Args RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::ID,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
     | ID LP Args error {@$=@1; yyerror ("missing ')'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
-    | ID LP RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
+    | ID LP RP {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::ID,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3));}
     //| ID LP error {@$=@1; yyerror ("missing ')'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
-    | Exp LB Exp RB {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
+    | Exp LB Exp RB {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",$1->valueType,$1->value,@$); $$->addSubNodes(move_all($1,$2,$3,$4));}
     | Exp LB Exp error {@$=@1; yyerror ("missing ']'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
     | Exp DOT ID {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
     | Exp DOT error {@$=@1; yyerror ("missing ID",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }

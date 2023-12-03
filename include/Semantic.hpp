@@ -7,6 +7,7 @@
 #include <any>
 #include <array>
 #include <cstdint>
+#include <deque>
 #include <list>
 #include <memory>
 #include <optional>
@@ -35,13 +36,13 @@ namespace spl {
         "use struct without declare",
         "unmatching type on both sides of logic operation",
         "unmatching type on both sides of compare operation",
-        "unmatch type for function arguments"
+        "unmatch type for function argument(s)"
     };
 
     struct AryDef {
         ValueType type;
         size_t size;
-        std::list<int> subAryLength;
+        std::deque<int> subAryLength;
     };
 
     struct FunDef {
@@ -56,6 +57,7 @@ namespace spl {
         std::vector<ValueType> memberTypes;
         std::vector<std::string> memberIds;
         std::vector<std::pair<int, AryDef>> memberAry;
+        std::vector<std::pair<int, std::string>> memberStruct;
     };
 
     struct DefNode {
@@ -80,6 +82,8 @@ namespace spl {
         std::list<VarTable> m_varTables;
         std::vector<std::string> m_errors;
         std::vector<std::pair<std::string, FunDef>> waitFun;
+        StructDef m_structSubStruct;
+        AryDef m_structSubAry;
 
         std::optional<VarNode> getVarNode(const std::string& id) const;
 
