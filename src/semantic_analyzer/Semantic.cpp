@@ -2,6 +2,7 @@
 #include "Frontage.hpp"
 #include "Parser.hpp"
 
+#include <algorithm>
 #include <any>
 #include <optional>
 #include <sstream>
@@ -81,18 +82,18 @@ namespace spl {
             return (isInt(lhs) || isFloat(lhs) || isChar(lhs)) && (isInt(rhs) || isFloat(rhs) || isChar(rhs));
         }
 
-        bool processArray(AryDef& aryDef, NodeType& varDec) {
-            auto* varDecNode = &varDec;
+        bool deReferenceArray(AryDef& aryDef, NodeType& exp) {
+            auto* expNode = &exp;
             while(true) {
-                if((*varDecNode)->subNodes.size() == 1) {
+                if((*expNode)->subNodes.size() == 1) {
                     break;
                 }
-                int length = std::get<int>((*varDecNode)->subNodes[2]->value);
+                int length = std::get<int>((*expNode)->subNodes[2]->value);
                 if(length < 0) {
                     return false;
                 }
                 aryDef.subAryLength.push_front(length);
-                varDecNode = &(*varDecNode)->subNodes[0];
+                expNode = &(*expNode)->subNodes[0];
             }
             return true;
         }
@@ -105,6 +106,61 @@ namespace spl {
         cerr << ss.str() << '\n';
 #endif
         m_errors.push_back(ss.str());
+    }
+
+    std::optional<ValueType> SemanticAnalyzer::processArrayExp(NodeType& exp) {
+        processExp(exp->subNodes[0]);
+        processExp(exp->subNodes[2]);
+        if(exp->subNodes[0]->valueType != ValueType::ARRAY) {
+            appendError(10, exp->loc, SEMANTIC_ERROR_TEMPLATE[9]);
+            return std::nullopt;
+        } else if(exp->subNodes[2]->valueType != ValueType::INT) {
+            appendError(12, exp->loc, SEMANTIC_ERROR_TEMPLATE[11]);
+            return std::nullopt;
+        }
+        auto var = getVarNode(std::get<string>(exp->subNodes[0]->value));
+        AryDef aryDef = std::any_cast<AryDef>(var->val);
+        return aryDef.type;
+    }
+
+    bool SemanticAnalyzer::processArray(AryDef& aryDef, NodeType& varDec) {
+        auto* varDecNode = &varDec;
+        while(true) {
+            if((*varDecNode)->subNodes.size() == 1) {
+                break;
+            }
+            int length = std::get<int>((*varDecNode)->subNodes[2]->value);
+            if(length < 0) {
+                return false;
+            }
+            aryDef.subAryLength.push_front(length);
+            varDecNode = &(*varDecNode)->subNodes[0];
+        }
+        return true;
+    }
+
+    bool SemanticAnalyzer::processArgs(FunDef& funDef, NodeType& args) {
+        auto* argsNode = &args;
+        size_t argsCnt = 0;
+        while(true) {
+            if(argsCnt >= funDef.argTypes.size()) {
+                appendError(9, (*argsNode)->loc,
+                            SEMANTIC_ERROR_TEMPLATE[8] + std::to_string(funDef.argIds.size()) + " but got " +
+                                std::to_string(argsCnt + 1));
+                return false;
+            }
+            processExp((*argsNode)->subNodes[0]);
+            if((*argsNode)->subNodes[0]->valueType != funDef.argTypes[argsCnt]) {
+                appendError(19, (*argsNode)->loc, SEMANTIC_ERROR_TEMPLATE[18]);
+                return false;
+            }
+            ++argsCnt;
+            if((*argsNode)->subNodes.size() == 1) {
+                break;
+            }
+            argsNode = &(*argsNode)->subNodes[2];
+        }
+        return true;
     }
 
     bool SemanticAnalyzer::canAssign(const NodeType& lhs, const NodeType& rhs) {
@@ -316,7 +372,7 @@ namespace spl {
     void SemanticAnalyzer::processExp(NodeType& exp) {
         auto& subNodes = exp->subNodes;
         if(subNodes.size() == 1) {
-            if(static_cast<TOKEN_TYPE>(exp->subNodes[0]->type) == TOKEN_TYPE::ID) {
+            if(static_cast<TOKEN_TYPE>(subNodes[0]->type) == TOKEN_TYPE::ID) {
                 if(auto varNode = getVarNode(std::get<string>(subNodes[0]->value))) {
                     switch(varNode->type) {
                         case ValueType::ARRAY:
@@ -340,14 +396,14 @@ namespace spl {
             if(!(isInt(subNodes[1]) || !isFloat(subNodes[1]))) {
                 appendError(7, exp->loc, SEMANTIC_ERROR_TEMPLATE[6]);
             }
-            exp->valueType = exp->subNodes[1]->valueType;
+            exp->valueType = subNodes[1]->valueType;
         } else if(subNodes.size() == 3) {
             if(static_cast<TOKEN_TYPE>(subNodes[0]->type) == TOKEN_TYPE::LP) {
                 processExp(subNodes[2]);
                 exp->valueType = subNodes[2]->valueType;
                 exp->value = subNodes[2]->value;
                 return;
-            } else if(subNodes[0]->valueType == ValueType::ID) {  // deal function call
+            } else if(static_cast<TOKEN_TYPE>(subNodes[1]->type) == TOKEN_TYPE::LP) {  // process function call
                 if(auto defNode = getDefNode(std::get<string>(subNodes[0]->value), ValueType::FUNCTION)) {
                     auto funDef = std::get<FunDef>(defNode->val);
                     if(!funDef.argIds.empty()) {
@@ -358,7 +414,40 @@ namespace spl {
                     }
                     return;
                 } else {
+                    if(hadDeclareInAllScope(std::get<string>(subNodes[0]->value))) {
+                        appendError(11, exp->loc, SEMANTIC_ERROR_TEMPLATE[10]);
+                    } else {
+                        appendError(2, exp->loc, std::get<string>(subNodes[0]->value) + SEMANTIC_ERROR_TEMPLATE[1]);
+                    }
                     appendError(2, exp->loc, std::get<string>(subNodes[0]->value) + SEMANTIC_ERROR_TEMPLATE[1]);
+                }
+            } else if(static_cast<TOKEN_TYPE>(subNodes[1]->type) == TOKEN_TYPE::DOT) {  // process struct member access
+                if(static_cast<TOKEN_TYPE>(subNodes[2]->type) != TOKEN_TYPE::ID) {
+                    appendError(14, exp->loc, SEMANTIC_ERROR_TEMPLATE[13]);
+                } else {
+                    processExp(subNodes[0]);
+                    if(subNodes[0]->valueType != ValueType::STRUCT) {
+                        appendError(13, exp->loc, SEMANTIC_ERROR_TEMPLATE[12]);
+                    } else {
+                        if(!hadDefined(std::get<string>(subNodes[0]->value), ValueType::STRUCT)) {
+                            appendError(13, exp->loc, SEMANTIC_ERROR_TEMPLATE[12]);
+                        } else if(auto varNode = getVarNode(std::get<string>(subNodes[0]->value))) {
+                            if(varNode->type != ValueType::STRUCT) {
+                                appendError(13, exp->loc, SEMANTIC_ERROR_TEMPLATE[12]);
+                            } else {
+                                auto structDef = std::any_cast<StructDef>(varNode->val);
+                                for(int i = 0; i < structDef.memberIds.size(); ++i) {
+                                    if(structDef.memberIds[i] == std::get<string>(subNodes[2]->value)) {
+                                        exp->valueType = structDef.memberTypes[i];
+                                        return;
+                                    }
+                                }
+                                appendError(14, exp->loc, SEMANTIC_ERROR_TEMPLATE[13]);
+                            }
+                        } else {
+                            appendError(1, exp->loc, std::get<string>(subNodes[0]->value) + SEMANTIC_ERROR_TEMPLATE[0]);
+                        }
+                    }
                 }
             }
             processExp(subNodes[0]);
@@ -389,7 +478,7 @@ namespace spl {
                 case TOKEN_TYPE::NE:
                 case TOKEN_TYPE::EQ:
                     if(!canCompare(subNodes[0], subNodes[2])) {
-                        appendError(17, exp->loc, SEMANTIC_ERROR_TEMPLATE[6]);
+                        appendError(18, exp->loc, SEMANTIC_ERROR_TEMPLATE[17]);
                     } else {
                         exp->valueType = ValueType::INT;
                     }
@@ -399,25 +488,39 @@ namespace spl {
                 case TOKEN_TYPE::MINUS:
                 case TOKEN_TYPE::MUL:
                 case TOKEN_TYPE::DIV:
-                    // TODO
-                    if(!isInt(subNodes[0]) || !isInt(subNodes[2])) {
+                    if(subNodes[0]->valueType != subNodes[2]->valueType) {
                         appendError(7, exp->loc, SEMANTIC_ERROR_TEMPLATE[6]);
+                        exp->valueType = ValueType::NONE;
                     } else {
-                        exp->valueType = ValueType::INT;
+                        exp->valueType = subNodes[0]->valueType;
                     }
                     break;
                 default:
                     break;
             }
-        } else if(subNodes.size() == 4) {  // Array Check
-            // Function Call
-            // TODO
+        } else if(subNodes.size() == 4) {
+            if(static_cast<TOKEN_TYPE>(subNodes[1]->type) == TOKEN_TYPE::LB) {  // Array Check
+                if(auto type = processArrayExp(exp)) {
+                    exp->valueType = type.value();
+                } else {
+                    exp->valueType = ValueType::NONE;
+                }
+            } else {  // Function Call
+                if(auto funDef = getDefNode(std::get<string>(subNodes[0]->value), ValueType::FUNCTION)) {
+                    if(!processArgs(std::get<FunDef>(funDef->val), subNodes[2])) {
+                        exp->valueType = ValueType::NONE;
+                    } else {
+                        exp->valueType = std::get<FunDef>(funDef->val).returnType;
+                    }
+                } else {
+                    if(hadDeclareInAllScope(std::get<string>(subNodes[0]->value))) {
+                        appendError(11, exp->loc, SEMANTIC_ERROR_TEMPLATE[10]);
+                    } else {
+                        appendError(2, exp->loc, std::get<string>(subNodes[0]->value) + SEMANTIC_ERROR_TEMPLATE[1]);
+                    }
+                }
+            }
         }
-    }
-
-    bool processArgs(NodeType& args) {
-        // TODO
-        return true;
     }
 
     bool SemanticAnalyzer::processSpecifier(NodeType& specifier) {
@@ -538,7 +641,7 @@ namespace spl {
             case ValueType::INT:
             case ValueType::FLOAT:
             case ValueType::CHAR:
-                varTable[std::get<string>(var->value)] = { var->valueType, std::get<string>(var->typeValue), 1 };
+                varTable[std::get<string>(var->value)] = { specifier->valueType, std::get<string>(var->typeValue), 1 };
                 break;
             case ValueType::STRUCT:
                 varTable[std::get<string>(var->value)] = { ValueType::STRUCT, std::get<string>(var->typeValue), 1 };
@@ -609,10 +712,10 @@ namespace spl {
         auto* stmtNode = &stmtList;
         bool value = true;
         while(true) {
-            if((*stmtNode)->subNodes.size() == 1) {
+            if(static_cast<TOKEN_TYPE>((*stmtNode)->type) == TOKEN_TYPE::NOTHING) {
                 break;
             }
-            if(!processStmt(funDef, (*stmtNode)->subNodes[0])) {
+            if(!processStmt(funDef, (*stmtNode)->subNodes[0])) {  // FIXME
                 value = false;
             }
             stmtNode = &(*stmtNode)->subNodes[1];
@@ -621,23 +724,40 @@ namespace spl {
     }
 
     bool SemanticAnalyzer::processStmt(const FunDef& funDef, NodeType& stmt) {
-        if(static_cast<TOKEN_TYPE>(stmt->subNodes[1]->type) == TOKEN_TYPE::SEMI) {
-            processExp(stmt->subNodes[0]);
-            return true;
-        }
-        if(static_cast<TOKEN_TYPE>(stmt->subNodes[0]->type) == TOKEN_TYPE::NON_TERMINAL) {
+        if(stmt->subNodes.size() == 1 && static_cast<TOKEN_TYPE>(stmt->subNodes[0]->type) == TOKEN_TYPE::NON_TERMINAL) {
             if(std::get<string>(stmt->subNodes[0]->typeValue) == "CompSt") {
                 return processCompSt(funDef, stmt->subNodes[0]);
             }
             return false;
         }
+        if(static_cast<TOKEN_TYPE>(stmt->subNodes[1]->type) == TOKEN_TYPE::SEMI) {
+            processExp(stmt->subNodes[0]);
+            return true;
+        }
         switch(static_cast<TOKEN_TYPE>(stmt->subNodes[0]->type)) {
             case TOKEN_TYPE::RETURN:
                 processExp(stmt->subNodes[1]);
-                if(funDef.returnType != stmt->subNodes[1]->valueType) {
+                ValueType returnType;
+                if(stmt->subNodes[1]->valueType == ValueType::ID) {  // FIXME
+                    if(auto varNode = getVarNode(std::get<string>(stmt->subNodes[1]->value))) {
+                        if(varNode->type == ValueType::ARRAY) {
+                            appendError(8, stmt->loc, SEMANTIC_ERROR_TEMPLATE[7]);
+                            return false;
+                        } else {
+                            returnType = varNode->type;
+                        }
+                    } else {
+                        appendError(1, stmt->loc, std::get<string>(stmt->subNodes[1]->value) + SEMANTIC_ERROR_TEMPLATE[0]);
+                        return false;
+                    }
+                } else {
+                    returnType = stmt->subNodes[1]->valueType;
+                }
+                if(funDef.returnType != returnType) {
                     appendError(8, stmt->loc, SEMANTIC_ERROR_TEMPLATE[7]);
                     return false;
                 }
+                break;
             case TOKEN_TYPE::IF: {
                 bool value = true;
                 if(stmt->subNodes.size() == 5) {
@@ -646,7 +766,9 @@ namespace spl {
                         appendError(17, stmt->loc, SEMANTIC_ERROR_TEMPLATE[16]);
                         value = false;
                     }
-                    return processStmt(funDef, stmt->subNodes[4]) && value;
+                    m_varTables.emplace_back();
+                    value = processStmt(funDef, stmt->subNodes[4]) && value;
+                    m_varTables.pop_back();
                 } else {
                     processExp(stmt->subNodes[2]);
                     if(stmt->subNodes[2]->valueType != ValueType::INT) {
@@ -656,8 +778,11 @@ namespace spl {
                     if(!processStmt(funDef, stmt->subNodes[4])) {
                         value = false;
                     }
-                    return processStmt(funDef, stmt->subNodes[6]) && value;
+                    m_varTables.emplace_back();
+                    value = processStmt(funDef, stmt->subNodes[6]) && value;
+                    m_varTables.pop_back();
                 }
+                return value;
             }
             case TOKEN_TYPE::WHILE: {
                 bool value = true;

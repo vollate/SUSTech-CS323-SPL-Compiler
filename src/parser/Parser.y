@@ -270,7 +270,7 @@ Exp: Exp ASSIGN Exp {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE
     | Exp LB Exp error {@$=@1; yyerror ("missing ']'",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
     | Exp DOT ID {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE,0,@$); $$->addSubNodes(move_all($1,$2,$3));}
     | Exp DOT error {@$=@1; yyerror ("missing ID",@$, ERROR_TYPE::SYNTAX_ERROR,frontage); }
-    | ID {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::NONE,$1->typeValue,@$); $$->addSubNodes(move_all($1));}
+    | ID {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::ID,$1->typeValue,@$); $$->addSubNodes(move_all($1));}
     | INT {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::INT,$1->value,@$);$$->addSubNodes(move_all($1));}
     | FLOAT {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::FLOAT,$1->value,@$); $$->addSubNodes(move_all($1));}
     | CHAR {@$=@1;$$=BUILD_AST_NODE(NON_TERMINAL, "Exp",ValueType::CHAR,$1->value,@$); $$->addSubNodes(move_all($1));}

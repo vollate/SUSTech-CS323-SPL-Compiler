@@ -34,7 +34,8 @@ namespace spl {
         "redefine the same structure type",
         "use struct without declare",
         "unmatching type on both sides of logic operation",
-        "unmatching type on both sides of compare operation"
+        "unmatching type on both sides of compare operation",
+        "unmatch type for function arguments"
     };
 
     struct AryDef {
@@ -81,6 +82,12 @@ namespace spl {
         std::vector<std::pair<std::string, FunDef>> waitFun;
 
         std::optional<VarNode> getVarNode(const std::string& id) const;
+
+        bool processArray(AryDef& aryDef, NodeType& exp);
+
+        std::optional<ValueType> processArrayExp(NodeType& exp);
+
+        bool processArgs(FunDef& funDef, NodeType& args);
 
         void appendError(int errorId, const location& location, const std::string& msg);
 
