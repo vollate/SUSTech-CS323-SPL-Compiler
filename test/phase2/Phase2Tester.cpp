@@ -9,15 +9,26 @@ int main(int argc, char **argv) {
     spl::Frontage instance(argv[1]);
     bool succeed = instance.parse();
     if (succeed) {
-        std::cout << instance.str() << '\n';
+//        std::cerr<<instance.parseTree();
+        succeed = instance.semantic();
+        if (!succeed) {
+            std::cerr << "semantic error\n==========================\n" << instance.semanticError();
+        }
     } else {
-        std::cerr << "parse failed\n";
+        std::cerr << "syntax error\n";
     }
+    std::fstream file;
     if (argc == 3) {
         std::cout << "writing to file: " << argv[2] << '\n';
-        std::fstream file(argv[2], std::ios::out);
-        file << (succeed ? instance.str() : instance.error());
+        file.open(argv[2], std::ios::out);
+    } else {
+        std::string path(argv[1]);
+        path = path.substr(0, path.find('.'));
+        std::cout << "writing to file: " << path.append(".out") << '\n';
+        file.open(argv[2], std::ios::out);
     }
-    
+    if (!succeed) {
+        file << instance.semanticError();
+    }
     return 0;
 }

@@ -8,7 +8,7 @@ foreach (i RANGE 1 9)
             ${CMAKE_SOURCE_DIR}/test/phase2/testout/test_2_r0${i}.out)
 endforeach ()
 
-foreach (i RANGE 10 12)
+foreach (i RANGE 10 15)
     add_test(NAME phase2_testcase${i} COMMAND
             $<TARGET_FILE:splc_2> ${CMAKE_SOURCE_DIR}/test/phase2/testcases/test_2_r${i}.spl
             ${CMAKE_SOURCE_DIR}/test/phase2/testout/test_2_r${i}.out)

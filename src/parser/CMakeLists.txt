@@ -1,7 +1,7 @@
 find_package(BISON REQUIRED)
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     BISON_TARGET(bison_parser Parser.y ${CMAKE_PRECOMPILE_OUTPUT_DIR}/Parser.cpp
-            COMPILE_FLAGS "--debug -Wcounterexamples"
+#            COMPILE_FLAGS "--debug -Wcounterexamples"
             DEFINES_FILE ${CMAKE_PRECOMPILE_OUTPUT_DIR}/Parser.hpp)
 else ()
     BISON_TARGET(bison_parser Parser.y ${CMAKE_PRECOMPILE_OUTPUT_DIR}/Parser.cpp

@@ -1,6 +1,5 @@
 #include "Frontage.hpp"
-#include <array>
-#include <exception>
+
 #include <fstream>
 #include <optional>
 #include <sstream>
@@ -10,7 +9,8 @@ using namespace spl;
 
 namespace {}  // namespace
 
-Frontage::Frontage(std::string const& filePath) : m_scanner(*this, filePath), m_parser(m_scanner, *this), m_location() {
+Frontage::Frontage(std::string const& filePath)
+    : m_scanner(*this, filePath), m_parser(m_scanner, *this), m_semanticAnalysizer(*this), m_location() {
     std::vector<std::string> SysIncludePath = { "/usr/lib/gcc/x86_64-pc-linux-gnu/13.2.1/include", "/usr/local/include",
                                                 "/usr/lib/gcc/x86_64-pc-linux-gnu/13.2.1/include-fixed", "/usr/include" };
 }
@@ -21,9 +21,13 @@ bool Frontage::parse() {
     return m_errors.empty();
 }
 
+bool Frontage::semantic() {
+    return m_semanticAnalysizer.analyze();
+}
+
 void Frontage::clear() {
     m_location = spl::location();
-    m_ast.clear();
+    m_parseTree.clear();
     m_includeTree.clear();
     m_errors.clear();
 }
@@ -37,34 +41,34 @@ overload(T...) -> overload<T...>;
 
 static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ParseNode>& node, size_t level = 0) {
     bool addLevel = false;
-    if(auto type = static_cast<token_type>(node->type); type != token_type::NOTHING) {
+    if(auto type = static_cast<TOKEN_TYPE>(node->type); type != TOKEN_TYPE::NOTHING) {
         addLevel = true;
         for(int i = 0; i < level; ++i) {
             s << "  ";
         }
-        if(type == token_type::NON_TERMINAL) {
-            s << std::get<std::string>(node->value) << " (" << node->loc.end.line << ")\n";
-        } else if(type == token_type::TYPE || type == token_type::ID) {
-            s << (type == token_type::TYPE ? "TYPE: " : "ID: ");
-            std::visit(overload{ [&](auto val) { s << val; } }, node->value);
+        if(type == TOKEN_TYPE::NON_TERMINAL) {
+            s << std::get<std::string>(node->typeValue) << " (" << node->loc.end.line << ")\n";
+        } else if(type == TOKEN_TYPE::TYPE || type == TOKEN_TYPE::ID) {
+            s << (type == TOKEN_TYPE::TYPE ? "TYPE: " : "ID: ");
+            std::visit(overload{ [&](auto val) { s << val; } }, node->typeValue);
             s << '\n';
-        } else if(type == token_type::INT || type == token_type::CHAR || type == token_type::FLOAT) {
+        } else if(type == TOKEN_TYPE::INT || type == TOKEN_TYPE::CHAR || type == TOKEN_TYPE::FLOAT) {
             switch(type) {
-                case token_type::INT:
+                case TOKEN_TYPE::INT:
                     s << "INT: ";
                     break;
-                case token_type::CHAR:
+                case TOKEN_TYPE::CHAR:
                     s << "CHAR: ";
                     break;
-                case token_type::FLOAT:
+                case TOKEN_TYPE::FLOAT:
                     s << "FLOAT: ";
                     break;
                 default:
                     break;
             }
-            std::visit(overload{ [&](auto& val) { s << val << '\n'; } }, node->value);
+            std::visit(overload{ [&](auto& val) { s << val << '\n'; } }, node->typeValue);
         } else {
-            std::visit(overload{ [&](auto val) { s << val << '\n'; } }, node->value);
+            std::visit(overload{ [&](auto val) { s << val << '\n'; } }, node->typeValue);
         }
     }
     for(auto& subNode : node->subNodes) {
@@ -72,9 +76,9 @@ static void recursiveConvert(std::stringstream& s, const std::unique_ptr<ParseNo
     }
 }
 
-std::string Frontage::str() const {
+std::string Frontage::parseTree() const {
     std::stringstream s;
-    for(auto& node : m_ast) {
+    for(auto& node : m_parseTree) {
         recursiveConvert(s, node);
     }
     return s.str();
@@ -88,7 +92,7 @@ void Frontage::increaseLine(int32_t line) {
     m_location.end.line += line;
 }
 
-void Frontage::appendError(const string& error) {
+void Frontage::appendSyntaxError(const string& error) {
     m_errors.push_back(error);
 }
 
@@ -108,7 +112,7 @@ bool Frontage::userFirstInclude(const std::string& name) {
     return false;
 }
 
-std::string Frontage::error() const {
+std::string Frontage::syntaxError() const {
     std::stringstream s;
     for(auto& error : m_errors) {
         s << error << '\n';
@@ -116,8 +120,12 @@ std::string Frontage::error() const {
     return s.str();
 }
 
+std::string Frontage::semanticError() const {
+    return m_semanticAnalysizer.getErrors();
+}
+
 std::optional<std::string> Frontage::findHeaderSys(const std::string& headerName) {
-    for(auto& path : Frontage::SysIncludePath) {
+    for(const auto& path : Frontage::SysIncludePath) {
         std::ifstream file(path + "/" + headerName);
         if(file.good()) {
             return path + "/" + headerName;
@@ -133,4 +141,5 @@ std::optional<std::string> Frontage::findHeaderUser(const std::string& headerNam
     }
     return findHeaderSys(headerName);
 }
+
 SubFrontage::SubFrontage(const std::string& filePath) : Frontage(filePath) {}
