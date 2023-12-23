@@ -1,0 +1,37 @@
+FUNCTION calculateBinomialCoefficient :
+PARAM v0
+PARAM v1
+v2 := #1
+v3 := #0
+IF v0 < v1 GOTO label0
+GOTO label1
+LABEL label0 :
+RETURN #0
+LABEL label1 :
+t0 := v0 - v1
+IF v1 > t0 GOTO label2
+GOTO label3
+LABEL label2 :
+v1 := v0 - v1
+LABEL label3 :
+LABEL label4 :
+IF v3 < v1 GOTO label5
+GOTO label6
+LABEL label5 :
+t2 := v0 - v3
+v2 := v2 * t2
+t4 := v3 + #1
+v2 := v2 / t4
+v3 := v3 + #1
+GOTO label4
+LABEL label6 :
+RETURN v2
+
+FUNCTION main :
+READ v6
+READ v6
+ARG v6
+ARG v6
+v6 := CALL calculateBinomialCoefficient
+WRITE v6
+RETURN #0

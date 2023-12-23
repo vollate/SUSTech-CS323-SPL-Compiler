@@ -1,0 +1,53 @@
+FUNCTION mod :
+PARAM v0
+PARAM v1
+t0 := v0 / v1
+t1 := t0 * v1
+t2 := v0 - t1
+RETURN t2
+
+FUNCTION isPerfectNumber :
+PARAM v2
+v3 := #0
+v4 := #1
+LABEL label0 :
+t3 := v2 / #2
+IF v4 <= t3 GOTO label1
+GOTO label2
+LABEL label1 :
+ARG v4
+ARG v2
+t4 := CALL mod
+IF t4 == #0 GOTO label3
+GOTO label4
+LABEL label3 :
+v3 := v3 + v4
+LABEL label4 :
+v4 := v4 + #1
+GOTO label0
+LABEL label2 :
+IF v3 == v2 GOTO label5
+GOTO label6
+LABEL label5 :
+RETURN #1
+LABEL label6 :
+RETURN #0
+
+FUNCTION main :
+v5 := #0
+v6 := #1
+LABEL label8 :
+IF v6 <= #100 GOTO label9
+GOTO label10
+LABEL label9 :
+ARG v6
+t7 := CALL isPerfectNumber
+IF t7 == #1 GOTO label11
+GOTO label12
+LABEL label11 :
+WRITE v6
+LABEL label12 :
+v6 := v6 + #1
+GOTO label8
+LABEL label10 :
+RETURN #0
