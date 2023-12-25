@@ -22,6 +22,7 @@
 - [x] Type 18: unmatching type on both sides of compare operation (only int/float/char can do compare operation)
 - [x] Type 19: unmatch type for function argument(s)
 
+支持 scoop variable
 ## Test Cases status
 
 - [x] test_2_r01.spl
