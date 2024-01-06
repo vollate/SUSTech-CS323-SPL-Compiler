@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(MIPS assembler)
-set(CMAKE_CXX_STANDARD 17)
-add_executable(assembler main.cpp assembler.cpp assembler.h)
+project(MIPS_assembler)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_executable(splc ./src/asm.cpp ./src/main.cpp)
+target_include_directories(splc PRIVATE ./include)
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+  add_compile_definitions(SPLC_DEBUG)
+endif()
