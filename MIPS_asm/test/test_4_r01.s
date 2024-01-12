@@ -18,3 +18,115 @@ la $a0, _eol
 syscall
 move $v0, $0
 jr $ra
+move $a0, todo: write
+addi $sp, $sp, -4
+sw $ra, 0($sp)
+jal write
+lw $ra, 0($sp)
+addi $sp, $sp, 4
+    
+
+
+
+
+
+
+
+
+
+move $a0, todo: write
+addi $sp, $sp, -4
+sw $ra, 0($sp)
+jal write
+lw $ra, 0($sp)
+addi $sp, $sp, 4
+    
+
+
+
+
+
+
+move $a0, todo: write
+addi $sp, $sp, -4
+sw $ra, 0($sp)
+jal write
+lw $ra, 0($sp)
+addi $sp, $sp, 4
+    
+
+
+move $a0, todo: write
+addi $sp, $sp, -4
+sw $ra, 0($sp)
+jal write
+lw $ra, 0($sp)
+addi $sp, $sp, 4
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+move $a0, todo: write
+addi $sp, $sp, -4
+sw $ra, 0($sp)
+jal write
+lw $ra, 0($sp)
+addi $sp, $sp, 4
+    
+
+
+
+
+
+
+
+
+
+
+
+
+move $a0, todo: write
+addi $sp, $sp, -4
+sw $ra, 0($sp)
+jal write
+lw $ra, 0($sp)
+addi $sp, $sp, 4
+    
+
+
+
+
+move $a0, todo: write
+addi $sp, $sp, -4
+sw $ra, 0($sp)
+jal write
+lw $ra, 0($sp)
+addi $sp, $sp, 4
+    
+
+
+
+
+
+
+
+
+
+
+
+
+

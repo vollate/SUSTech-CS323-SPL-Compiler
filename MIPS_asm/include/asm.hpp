@@ -4,6 +4,8 @@
 #include <fstream>
 #include <list>
 #include <string>
+#include <string_view>
+#include <unordered_map>
 #include <variant>
 #include <vector>
 
@@ -40,9 +42,25 @@ struct TacInst {
 };
 
 template <typename Reg>
+struct VarDesc {
+    std::string varName;
+    Reg reg;
+    size_t offset;
+};
+
+template <typename Reg>
+struct RegDesc {
+    std::string varName;
+    bool dirty = false;
+};
+
+template <typename Reg>
 class TargetPlateform {
+protected:
 public:
+    virtual void reset() = 0;
     virtual void preTranslate(std::fstream& file) = 0;
+    virtual void postTranslate(std::fstream& file) = 0;
     virtual void translateInst(std::fstream& file, const TacInst& ins) = 0;
 };
 
@@ -57,7 +75,7 @@ class Assembler {
     TacInst::NodeType processVariable(const std::string& varStr);
 
 public:
-    Assembler(const std::string& inPath, const std::string& outPath, TargetPlateform<Reg>& target);
+    Assembler(std::string_view inPath, std::string_view outPath, TargetPlateform<Reg>& target);
     void assembly();
 };
 

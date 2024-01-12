@@ -1,7 +1,10 @@
 #include "mips32.hpp"
-#include <string>
+#include "magic_enum/magic_enum.hpp"
+#include <cstdint>
+#include <fstream>
+#include <string_view>
 
-std::string MIPS32::PREAMBLE = R"(# SPL compiler generated assembly
+std::string_view MIPS32::PREAMBLE = R"(# SPL compiler generated assembly
 .data
 _prmpt: .asciiz "Enter an integer: "
 _eol: .asciiz "\n"
@@ -9,14 +12,15 @@ _eol: .asciiz "\n"
 .text
 )";
 
-std::string MIPS32::READ_FUNC = R"(read:
+std::string_view MIPS32::READ_FUNC = R"(read:
 li $v0, 4 la $a0, 4
 la $a0, _prmpt
 syscall
 li $v0, 5
 syscall
 jr $ra)";
-std::string MIPS32::WRITE_FUNC = R"(write:
+
+std::string_view MIPS32::WRITE_FUNC = R"(write:
 li $v0, 1
 syscall
 li $v0, 4
@@ -25,19 +29,29 @@ syscall
 move $v0, $0
 jr $ra)";
 
-MIPS32::MIPS32() {}
+MIPS32::MIPS32() : stackPtr{ static_cast<uint32_t>(-1) } {}
 
-MIPS_REG MIPS32::getRegister(const TacInst& op) {
-    // TODO
-    return MIPS_REG::NUM_REGS;
+void MIPS32::reset() {
+    stackPtr = -1;
+    variables.clear();
+    for(auto& reg : registers) {
+        reg.varName.clear();
+        reg.dirty = false;
+    }
 }
 
-MIPS_REG MIPS32::getRegisterW(const TacInst& op) {
+MIPS32_REG MIPS32::getRegister(const TacInst& op) {
     // TODO
-    return MIPS_REG::NUM_REGS;
+    return MIPS32_REG::NUM_REGS;
 }
 
-void MIPS32::spillRegister(MIPS_REG reg) {
+MIPS32_REG MIPS32::getRegisterW(const TacInst& op) {
+    // TODO
+    return MIPS32_REG::NUM_REGS;
+}
+
+void MIPS32::spillRegister(std::fstream& file, MIPS32_REG reg) {
+    file << std::format(MIPS32_Format[15], regToString(reg)) << '\n';
     // TODO
 }
 
@@ -49,50 +63,63 @@ void MIPS32::translateInst(std::fstream& file, const TacInst& inst) {
     using TI = TacInst;
     switch(inst.kind) {  // TODO
         case TI::ASSIGN:
-            return;
+            break;
         case TI::ADD:
-            return;
+            break;
         case TI::ARG:
-            return;
+            break;
         case TI::ADDR:
-            return;
+            break;
         case TI::CALL:
-            return;
-        case TI::DEC:
-            return;
+            break;
+        case TI::DEC:  // no requirement
+            break;
         case TI::DIV:
-            return;
+            break;
         case TI::DEREF:
-            return;
+            break;
         case TI::FETCH:
-            return;
+            break;
         case TI::FUNCTION:
-            return;
+            break;
         case TI::GOTO:
-            return;
+            break;
         case TI::IFEQ:
-            return;
+            break;
         case TI::IFNE:
-            return;
+            break;
         case TI::IFLT:
-            return;
+            break;
         case TI::IFLE:
-            return;
+            break;
         case TI::IFGT:
-            return;
+            break;
         case TI::IFGE:
-            return;
+            break;
         case TI::LABEL:
-            return;
+            break;
         case TI::MUL:
-            return;
+            break;
         case TI::PARAM:
-            return;
+            break;
         case TI::RETURN:
-            return;
+            break;
         case TI::SUB:
-            return;
+            break;
+        case TI::READ:
+            file << std::format(MIPS32_Format[13], "todo: read");  // TODO
+            break;
+        case TI::WRITE:
+            file << std::format(MIPS32_Format[14], "todo: write");  // TODO
+            break;
         case TI::NONE:
-            file << '\n';
+            break;
     }
+    file << '\n';
 }
+
+std::string MIPS32::regToString(MIPS32_REG reg) {
+    return "$" + std::string{ magic_enum::enum_name<MIPS32_REG>(reg) };
+}
+
+void MIPS32::postTranslate(std::fstream& file){};

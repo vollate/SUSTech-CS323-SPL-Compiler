@@ -7,6 +7,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 template <typename Reg>
@@ -20,7 +21,7 @@ TacInst::NodeType Assembler<Reg>::processVariable(const std::string& varStr) {
 }
 
 template <typename Reg>
-Assembler<Reg>::Assembler(const std::string& inPath, const std::string& outPath, TargetPlateform<Reg>& target)
+Assembler<Reg>::Assembler(std::string_view inPath, std::string_view outPath, TargetPlateform<Reg>& target)
     : inPath{ inPath }, outPath{ outPath }, target{ target } {}
 
 template <typename Reg>
@@ -142,8 +143,10 @@ void Assembler<Reg>::assembly() {
         processLine(line);
     }
     std::fstream outFile(outPath, std::ios::out);
+    target.reset();
     target.preTranslate(outFile);
     for(const auto& inst : instructions) {
         target.translateInst(outFile, inst);
     }
+    target.postTranslate(outFile);
 }
