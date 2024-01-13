@@ -9,26 +9,25 @@
 #include <utility>
 #include <variant>
 
-template <typename... T>
-struct overload : T... {
-    using T::operator()...;
-};
-
-template <typename... T>
-overload(T...) -> overload<T...>;
-
 namespace {
+    template<typename... T>
+    struct overload : T ... {
+        using T::operator()...;
+    };
 
-    std::string opdToStr(const TacInst::TacOpd& opd) {
+    template<typename... T>
+    overload(T...) -> overload<T...>;
+
+    std::string opdToStr(const TacInst::TacOpd &opd) {
         return std::get<std::string>(opd);
     }
 
-    int opdToInt(const TacInst::TacOpd& opd) {
+    int opdToInt(const TacInst::TacOpd &opd) {
         return std::get<int>(opd);
     }
 
     std::string regToStr(MIPS32_REG reg) {
-        return "$" + std::string{ magic_enum::enum_name<MIPS32_REG>(reg) };
+        return "$" + std::string{magic_enum::enum_name<MIPS32_REG>(reg)};
     }
 
 #define getStrReg(__opd) regToStr(getRegister(__opd))
@@ -40,8 +39,7 @@ std::string_view MIPS32::PREAMBLE = R"(# SPL compiler generated assembly
 _prmpt: .asciiz "Enter an integer: "
 _eol: .asciiz "\n"
 .globl main
-.text
-j main)";
+.text)";
 
 std::string_view MIPS32::READ_FUNC = R"(
 read:
@@ -70,7 +68,7 @@ void MIPS32::reset() {
     curFrameOffset = curSpOffset = 0;
     paramCounter = argCounter = 0;
     variables.clear();
-    for(auto& reg : registers) {
+    for (auto &reg: registers) {
         reg.varName.clear();
         reg.dirty = true;
     }
@@ -82,25 +80,25 @@ bool MIPS32::inWhiteList(MIPS32_REG reg) {
 
 MIPS32_REG MIPS32::getFreeRegister() {
     std::list<int> cleanReg;
-    for(int i = static_cast<int>(MIPS32_REG::t0); i <= static_cast<int>(MIPS32_REG::t9); ++i) {
-        if(!registers[i].dirty) {
+    for (int i = static_cast<int>(MIPS32_REG::t0); i <= static_cast<int>(MIPS32_REG::t9); ++i) {
+        if (!registers[i].dirty) {
             cleanReg.push_back(i);
         }
-        if(registers[i].varName.empty() && !inWhiteList(static_cast<MIPS32_REG>(i))) {
+        if (registers[i].varName.empty() && !inWhiteList(static_cast<MIPS32_REG>(i))) {
             return static_cast<MIPS32_REG>(i);
         }
     }
-    for(int i : cleanReg) {
+    for (int i: cleanReg) {
         MIPS32_REG reg = static_cast<MIPS32_REG>(i);
-        if(!inWhiteList(reg)) {
+        if (!inWhiteList(reg)) {
             spillRegister(reg);
             return reg;
         }
     }
     MIPS32_REG res;
-    for(int i = static_cast<int>(MIPS32_REG::t0); i <= static_cast<int>(MIPS32_REG::t9); ++i) {
+    for (int i = static_cast<int>(MIPS32_REG::t0); i <= static_cast<int>(MIPS32_REG::t9); ++i) {
         MIPS32_REG reg = static_cast<MIPS32_REG>(i);
-        if(!inWhiteList(reg)) {
+        if (!inWhiteList(reg)) {
             spillRegister(reg);
             res = reg;
             break;
@@ -109,37 +107,37 @@ MIPS32_REG MIPS32::getFreeRegister() {
     return res;
 }
 
-MIPS32_REG MIPS32::getRegister(const TacInst::TacOpd& op) {
+MIPS32_REG MIPS32::getRegister(const TacInst::TacOpd &op) {
     MIPS32_REG res = MIPS32_REG::zero;
     auto varName = std::get<std::string>(op);
-    if(variables.count(varName) == 0) {
+    if (variables.count(varName) == 0) {
         res = getFreeRegister();
         curSpOffset -= 4;
-        registers[static_cast<int>(res)] = { varName, true };
+        registers[static_cast<int>(res)] = {varName, true};
 #ifdef SPLC_DEBUG
         file << std::format("# new var {}, store in reg {}\n", varName, regToStr(res));
 #endif
-        variables.insert({ varName, { varName, res, curSpOffset + stackPtr } });
+        variables.insert({varName, {varName, res, curSpOffset + stackPtr}});
     } else {
-        auto& varDesc = variables[varName];
-        if(registers[static_cast<int>(varDesc.reg)].varName == varName) {
+        auto &varDesc = variables[varName];
+        if (registers[static_cast<int>(varDesc.reg)].varName == varName) {
             res = varDesc.reg;
         } else {
             res = getFreeRegister();
             file << std::format(MIPS32_Format[7], regToStr(res), varDesc.pos - stackPtr, "$sp")
-#ifdef SPLC_DEBUG
+                 #ifdef SPLC_DEBUG
                  << std::format(" # load {} to reg {}\n", varDesc.varName, regToStr(res));
 #else
-                 << '\n';
+            << '\n';
 #endif
-            registers[static_cast<int>(res)] = { varName, false };
+            registers[static_cast<int>(res)] = {varName, false};
         }
     }
     regWhiteList.push_back(res);
     return res;
 }
 
-MIPS32_REG MIPS32::getRegisterW(const TacInst::TacOpd& op) {
+MIPS32_REG MIPS32::getRegisterW(const TacInst::TacOpd &op) {
     // MIPS32_REG res = MIPS32_REG::zero;
     auto res = getRegister(op);
     registers[static_cast<int>(res)].dirty = true;
@@ -147,31 +145,31 @@ MIPS32_REG MIPS32::getRegisterW(const TacInst::TacOpd& op) {
 }
 
 void MIPS32::spillRegister(MIPS32_REG reg) {
-    auto& regDesc = registers[static_cast<int>(reg)];
-    if(regDesc.dirty && !regDesc.varName.empty()) {
-        auto& varDesc = variables[regDesc.varName];
+    auto &regDesc = registers[static_cast<int>(reg)];
+    if (regDesc.dirty && !regDesc.varName.empty()) {
+        auto &varDesc = variables[regDesc.varName];
         regDesc.dirty = false;
         file << std::format(MIPS32_Format[17], regToStr(reg), varDesc.pos - stackPtr)
-#ifdef SPLC_DEBUG
+             #ifdef SPLC_DEBUG
              << std::format(" # spill {} from reg {}\n", varDesc.varName, regToStr(reg));
 #else
-             << '\n';
+        << '\n';
 #endif
     }
 }
 
 void MIPS32::spillAllRegs() {
-    for(int i = static_cast<int>(MIPS32_REG::t0); i <= static_cast<int>(MIPS32_REG::t9); ++i) {
+    for (int i = static_cast<int>(MIPS32_REG::t0); i <= static_cast<int>(MIPS32_REG::t9); ++i) {
         spillRegister(static_cast<MIPS32_REG>(i));
         registers[i].varName.clear();
     }
 }
 
-std::tuple<std::string, std::string, std::string> MIPS32::processASMDVars(const TacInst& inst) {
+std::tuple<std::string, std::string, std::string> MIPS32::processASMDVars(const TacInst &inst) {
     std::string second, third;
     std::string first = getStrRegW(inst.nodes[0]);
-    if(inst.nodes[1].index() == inst.nodes[2].index()) {
-        if(0 == inst.nodes[1].index()) {
+    if (inst.nodes[1].index() == inst.nodes[2].index()) {
+        if (0 == inst.nodes[1].index()) {
             auto reg1 = getFreeRegister();
             auto reg2 = getFreeRegister();
             second = regToStr(reg1);
@@ -183,7 +181,7 @@ std::tuple<std::string, std::string, std::string> MIPS32::processASMDVars(const 
             third = getStrReg(inst.nodes[2]);
         }
     } else {
-        if(0 == inst.nodes[1].index()) {
+        if (0 == inst.nodes[1].index()) {
             third = getStrReg(inst.nodes[2]);
             auto reg1 = getFreeRegister();
             second = regToStr(reg1);
@@ -195,20 +193,20 @@ std::tuple<std::string, std::string, std::string> MIPS32::processASMDVars(const 
             file << std::format(MIPS32_Format[0], third, opdToInt(inst.nodes[2])) << '\n';
         }
     }
-    return { first, second, third };
+    return {first, second, third};
 }
 
 void MIPS32::preTranslate() {
     file << PREAMBLE << '\n' << READ_FUNC << '\n' << WRITE_FUNC << '\n';
 }
 
-void MIPS32::translateInst(const TacInst& inst) {
+void MIPS32::translateInst(const TacInst &inst) {
     using TI = TacInst;
-    const static auto emitIF = [this](std::string_view compare, const TacInst& inst) {
+    const static auto emitIF = [this](std::string_view compare, const TacInst &inst) {
         spillAllRegs();
         auto &l = inst.nodes[0], &r = inst.nodes[1];
-        if(l.index() == r.index()) {
-            if(l.index() == 0) {
+        if (l.index() == r.index()) {
+            if (l.index() == 0) {
                 int lVal = std::get<int>(l);
                 int rVal = std::get<int>(r);
                 file << std::format(MIPS32_Format[12], compare, lVal, rVal, std::get<std::string>(inst.nodes[2]));
@@ -218,7 +216,7 @@ void MIPS32::translateInst(const TacInst& inst) {
                 file << std::format(MIPS32_Format[12], compare, lVal, rVal, std::get<std::string>(inst.nodes[2]));
             }
         } else {
-            if(l.index() == 0) {
+            if (l.index() == 0) {
                 file << std::format(MIPS32_Format[12], compare, std::get<int>(l), getStrReg(r),
                                     std::get<std::string>(inst.nodes[2]));
             } else {
@@ -228,9 +226,9 @@ void MIPS32::translateInst(const TacInst& inst) {
         }
     };
 
-    switch(inst.kind) {
+    switch (inst.kind) {
         case TI::ASSIGN:
-            if(0 == inst.nodes[1].index()) {
+            if (0 == inst.nodes[1].index()) {
                 file << std::format(MIPS32_Format[0], getStrRegW(inst.nodes[0]), std::get<int32_t>(inst.nodes[1]));
             } else {
                 file << std::format(MIPS32_Format[1], getStrRegW(inst.nodes[0]), getStrReg(inst.nodes[1]));
@@ -242,15 +240,16 @@ void MIPS32::translateInst(const TacInst& inst) {
             break;
         }
         case TI::ARG:
-            if(argCounter++ < 4) {
+            if (argCounter++ < 4) {
                 file << std::format(MIPS32_Format[1], "$a" + std::to_string(argCounter - 1), getStrReg(inst.nodes[0]));
-            } else if(argCounter <= 12) {
+            } else if (argCounter <= 12) {
                 file << std::format(MIPS32_Format[1], "$s" + std::to_string(argCounter - 5), getStrReg(inst.nodes[0]));
             } else {
                 debugError("Args more than 12 !!!\n");
             }
             break;
         case TI::ADDR:
+            file << std::format(MIPS32_Format[1], getStrRegW(inst.nodes[0]), getStrReg(inst.nodes[1]));
             break;
         case TI::CALL:
             spillAllRegs();
@@ -266,22 +265,25 @@ void MIPS32::translateInst(const TacInst& inst) {
             break;
         }
         case TI::DEREF:
+            file << std::format(MIPS32_Format[8], getStrRegW(inst.nodes[0]), 0, getStrReg(inst.nodes[1]));
             break;
         case TI::FETCH:
+            file << std::format(MIPS32_Format[7], getStrRegW(inst.nodes[0]), 0, getStrReg(inst.nodes[1]));
             break;
         case TI::FUNCTION: {
             auto funName = opdToStr(inst.nodes[0]);
-            if(auto res = std::find_if(funcInfo->begin(), funcInfo->end(), [&](auto& i) { return i.name == funName; });
-               res != funcInfo->end()) {
+            if (auto res = std::find_if(funcInfo->begin(), funcInfo->end(), [&](auto &i) { return i.name == funName; });
+                    res != funcInfo->end()) {
                 curFunc = &*res;
                 curFrameOffset = curSpOffset = 8 + curFunc->varNum * 4;
                 file << std::format(MIPS32_Format[16], funName, -curSpOffset, curSpOffset - 4, curSpOffset - 8);
                 stackPtr -= curFrameOffset;
                 curSpOffset -= 8;
             } else {
-                debugError("Function name %s not find in infor table", funName.c_str());
+                debugError("Function name %s not find in info table", funName.c_str());
             }
-        } break;
+        }
+            break;
         case TI::GOTO:
             spillAllRegs();
             file << std::format(MIPS32_Format[9], opdToStr(inst.nodes[0]));
@@ -313,17 +315,20 @@ void MIPS32::translateInst(const TacInst& inst) {
             break;
         }
         case TI::PARAM:
-            if(curFunc->argc <= 4) {
+            if (curFunc->argc <= 4) {
                 ++paramCounter;
-                file << std::format(MIPS32_Format[1], getStrReg(inst.nodes[0]), "$a" + std::to_string(4 - paramCounter));
+                file << std::format(MIPS32_Format[1], getStrReg(inst.nodes[0]),
+                                    "$a" + std::to_string(4 - paramCounter));
+            } else if (curFunc->argc <= 12) {
+                if (paramCounter++ < curFunc->argc - 4) {
+                    file << std::format(MIPS32_Format[1], getStrReg(inst.nodes[0]),
+                                        "$s" + std::to_string(curFunc->argc - 4 - paramCounter));
+                } else {
+                    file << std::format(MIPS32_Format[1], getStrReg(inst.nodes[0]),
+                                        "$a" + std::to_string(curFunc->argc - paramCounter));
+                }
             } else {
-                // if(paramCounter++ <= 4) {
-                // file << std::format(MIPS32_Format[1], getStrReg(inst.nodes[0]), "$a" + std::to_string(paramCounter - 1));
-                //} else if(paramCounter <= 12) {
-                // file << std::format(MIPS32_Format[1], getStrReg(inst.nodes[0]), "$s" + std::to_string(paramCounter - 5));
-                //} else {
-                // debugError("Paramters more than 12 !!!\n");
-                //}
+                debugError("Paramters more than 12 !!!\n");
             }
             break;
         case TI::RETURN:
@@ -335,7 +340,8 @@ void MIPS32::translateInst(const TacInst& inst) {
             auto [first, second, third] = processASMDVars(inst);
             file << std::format(MIPS32_Format[4], first, second, third);
             break;
-        } break;
+        }
+            break;
         case TI::READ:
             file << std::format(MIPS32_Format[13], getStrRegW(inst.nodes[0]));
             break;
@@ -349,4 +355,4 @@ void MIPS32::translateInst(const TacInst& inst) {
     regWhiteList.clear();
 }
 
-void MIPS32::postTranslate(){};
+void MIPS32::postTranslate() {};

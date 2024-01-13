@@ -120,7 +120,6 @@ class MIPS32 : public TargetPlateform<MIPS32_REG> {
     MIPS32_REG getRegisterW(const TacInst::TacOpd& op);
     void spillRegister(MIPS32_REG reg);
     void spillAllRegs();
-    // std::string translateSubInst(const TacInst& inst);
 
 public:
     virtual void reset() override;

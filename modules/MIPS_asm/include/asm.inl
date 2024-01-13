@@ -15,7 +15,7 @@ template <typename Reg>
 TacInst::TacOpd Assembler<Reg>::processVariable(const std::string& varStr) {
     if(varStr.empty()) {
         throw std::runtime_error("variable str length is 0 !!!");
-    } else if(varStr[0] == '#') {
+    } else if(varStr[0] == '#' || varStr[0] == '[') {
         return std::atoi(varStr.c_str() + 1);
     }
     return varStr;
@@ -98,8 +98,22 @@ void Assembler<Reg>::processLine(const std::string& line) {
                 localVariables.clear();
                 funcInfo.emplace_back(elements[1], 0);
                 instructions.push_back({ TacInst::FUNCTION, { elements[1] } });
-            } else if(elements[1] == ":=") {  // a:=b
-                instructions.push_back({ TacInst::ASSIGN, { processVariable(elements[0]), processVariable(elements[2]) } });
+            } else if(first == "DEC") {
+                instructions.push_back({ TacInst::DEC, { processVariable(elements[1]), processVariable(elements[2]) } });
+            } else if(elements[1] == ":=") {  // a:=?b
+                if(elements[2][0] == '&') {
+                    instructions.push_back(
+                        { TacInst::ADDR, { processVariable(elements[0]), processVariable(elements[2].substr(1)) } });
+                } else if(elements[2][0] == '*') {
+                    instructions.push_back(
+                        { TacInst::FETCH, { processVariable(elements[0]), processVariable(elements[2].substr(1)) } });
+
+                } else if(elements[0][0] == '*') {
+                    instructions.push_back(
+                        { TacInst::DEREF, { processVariable(elements[0].substr(1)), processVariable(elements[2]) } });
+                } else {
+                    instructions.push_back({ TacInst::ASSIGN, { processVariable(elements[0]), processVariable(elements[2]) } });
+                }
             }
             break;
         case 4:  // CALL func
