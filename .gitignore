@@ -41,7 +41,7 @@
 compile_commands.json
 
 # build dir
-build/
+build*/
 cmake-build-*/
 bin/
 **/testout/

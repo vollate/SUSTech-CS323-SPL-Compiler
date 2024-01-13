@@ -47,7 +47,6 @@ v25 := CALL hanoi
 LABEL label2 :
 v32 := #0
 RETURN v32
-
 FUNCTION main :
 v34 := #3
 v33 := v34
